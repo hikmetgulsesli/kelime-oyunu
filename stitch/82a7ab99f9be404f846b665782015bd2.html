@@ -1,0 +1,37 @@
+# PRD: kelime-oyunu
+
+## 1. Projekt Überblick
+**Projektname:** kelime-oyunu
+**Projekttyp:** Tek oyuncu, tarayıcı tabanlı kelime tahmin oyunu (Wordle benzeri)
+**Plattform:** Web (SPA)
+**Kernfunktionalität:** Günlük 5 harfli Türkçe kelime tahmini, 6 deneme hakkı, renkli geri bildirim sistemi
+**Zielgruppe:** Türkçe konuşan günlük kullanıcılar, kelime oyunu meraklıları
+
+## 2. Funktionale Anforderungen
+### 2.1 Kernspiel
+- **Kelime uzunluğu:** 5 harf (sabit)
+- **Günlük kelime:** Her gün UTC timezone'a göre yeni kelime
+- **Tahmin hakkı:** 6 deneme
+- **Geri bildirim:** Yeşil (doğru), Sarı (yanlış yer), Gri (yok)
+
+### 2.2 Oyun Durumları
+- IDLE → PLAYING → (WIN | LOSE)
+
+### 2.3 Giriş Yöntemi
+- Sanal klavye ve Fiziksel klavye desteği
+
+### 2.4 İstatistikler
+- Toplam oyun, kazanma oranı, seriler, tahmin dağılımı.
+
+## 4. UI/UX Gereksinimleri
+### 4.1 Tema Renkleri
+- Arka plan: #121213
+- Yeşil: #538d4e
+- Sarı: #b59f3b
+- Gri: #3a3a3c
+- Metin: #ffffff
+
+### 4.4 Klavye Tasarımı
+Q W E R T Y U I O P
+ A S D F G H J K L
+ENTER Z X C V B N M ⌫

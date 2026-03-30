@@ -1,0 +1,202 @@
+# PRD: kelime-oyunu
+
+## 1. Projekt Überblick
+
+**Projektname:** kelime-oyunu
+**Projekttyp:** Tek oyuncu, tarayıcı tabanlı kelime tahmin oyunu (Wordle benzeri)
+**Plattform:** Web (SPA)
+**Kernfunktionalität:** Günlük 5 harfli Türkçe kelime tahmini, 6 deneme hakkı, renkli geri bildirim sistemi
+**Zielgruppe:** Türkçe konuşan günlük kullanıcılar, kelime oyunu meraklıları
+
+---
+
+## 2. Funktionale Anforderungen
+
+### 2.1 Kernspiel
+
+- **Kelime uzunluğu:** 5 harf (sabit)
+- **Günlük kelime:** Her gün UTC timezone'a göre yeni kelime, 00:00'da sıfırlanır
+- **Tahmin hakkı:** 6 deneme
+- **Geri bildirim:** Her harf için renk kodu
+  - 🟩 **Yeşil:** Doğru harf, doğru pozisyon
+  - 🟨 **Sarı:** Doğru harf, yanlış pozisyon
+  - ⬜ **Gri:** Harf kelimede yok
+- **Türkçe karakter desteği:** ç, ş, ğ, ü, ö, ı, Ç, Ş, Ğ, Ü, Ö, İ
+
+### 2.2 Oyun Durumları (State Machine)
+
+```
+IDLE → PLAYING → (WIN | LOSE) → IDLE (next day)
+```
+
+- **IDLE:** Oyun başlamadan önce, enter tuşu ile başlar
+- **PLAYING:** Aktif tahmin aşaması
+- **WIN:** Doğru kelime bulundu, zafer ekranı
+- **LOSE:** 6 tahmin hakkı bitti, kelime açıklanır
+
+### 2.3 Giriş Yöntemi
+
+- **Sanal klavye:** Ekranın altında dokunmatik/click klavye
+- **Fiziksel klavye desteği:** Bilgisayarda A-Z tuşları, Enter, Backspace
+- **Klavye durumu:** Kullanılan harfler renklenir (yeşil/sarı/gri)
+
+### 2.4 İstatistikler
+
+- Toplam oynanan oyun sayısı
+- Kazanma oranı (%)
+- Mevcut seri (ardışık kazanma)
+- En uzun seri
+- Tahmin dağılımı (1-6 deneme arasında kazanma yüzdesi)
+- Günlük tahmin dağılımı grafikleri
+
+### 2.5 Persistence (LocalStorage)
+
+- Oyuncunun tahminleri ve sonuçları localStorage'da saklanır
+- Günlük kelime seed'i: `YYYY-MM-DD` tarihinden türetilir (deterministik)
+- İstatistikler localStorage'da kalıcı
+
+---
+
+## 3. Teknik Gereksinimler
+
+### 3.1 Stack
+
+- **Framework:** React 18+ with Vite
+- **Styling:** Tailwind CSS
+- **State yönetimi:** React useState/useReducer (basit oyun, Redux gereksiz)
+- **Build tool:** Vite
+- **Package manager:** npm
+
+### 3.2 Proje Yapısı
+
+```
+kelime-oyunu/
+├── public/
+│   └── words/
+│       └── wordlist.json   # Türkçe 5 harfli kelimeler (EN AZ 2000 kelime)
+├── src/
+│   ├── components/
+│   │   ├── Board.tsx        # 6x5 oyun tahtası
+│   │   ├── Row.tsx          # Tek satır (5 kutu)
+│   │   ├── Tile.tsx         # Tek kutu (harf + renk durumu)
+│   │   ├── Keyboard.tsx     # Sanal klavye
+│   │   ├── Key.tsx          # Tek tuş
+│   │   ├── Toast.tsx        # Kısa mesaj bildirimi
+│   │   └── Modal.tsx        # Modal wrapper
+│   ├── hooks/
+│   │   ├── useGame.ts       # Oyun mantığı hook
+│   │   ├── useKeyboard.ts   # Klavye event hook
+│   │   └── useToast.ts      # Toast bildirimi hook
+│   ├── utils/
+│   │   ├── wordUtils.ts     # Kelime seçimi, validasyon
+│   │   ├── dateUtils.ts     # Günlük seed hesaplama
+│   │   └── constants.ts     # Sabitler (kelime uzunluğu, max tahmin)
+│   ├── data/
+│   │   └── validWords.ts    # Geçerli kelimeler listesi
+│   ├── types/
+│   │   └── index.ts         # TypeScript tipleri
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── index.html
+├── tailwind.config.js
+├── tsconfig.json
+├── vite.config.ts
+└── package.json
+```
+
+### 3.3 Kelime Listesi
+
+- Minimum 2000 adet 5 harfli Türkçe kelime
+- `validGuesses` (tahmin edilebilir) ve `targetWords` (günlük hedef) ayrımı olabilir
+- Kelime listesi: `src/data/validWords.ts` veya JSON dosyası olarak
+
+### 3.4 window.game State Exposure
+
+Oyun durumu global olarak erişilebilir olmalı:
+
+```typescript
+declare global {
+  interface Window {
+    game: {
+      state: GameState;
+      reset: () => void;
+      submitGuess: (word: string) => GuessResult | null;
+      getStatistics: () => Statistics;
+    };
+  }
+}
+```
+
+---
+
+## 4. UI/UX Gereksinimleri
+
+### 4.1 Tema Renkleri
+
+- Arka plan: #121213 (koyu gri)
+- Tile boş: #3a3a3c (orta gri)
+- Tile dolu: #818384 (açık gri border)
+- Yeşil: #538d4e
+- Sarı: #b59f3b
+- Gri: #3a3a3c
+- Metin: #ffffff
+
+### 4.2 Animasyonlar
+
+- Tile flip (her harf sırayla çevrilir, 250ms)
+- Tile shake (yanlış kelime, 600ms)
+- Row bounce (kazanma, sıralı zıplama)
+- Toast fade in/out
+
+### 4.3 Responsive Tasarım
+
+- Mobile-first yaklaşım
+- Max genişlik: 500px (mobil cihazlarda tam ekran)
+- Tile boyutu: viewport'a göre dinamik (min 43px, max 58px)
+
+### 4.4 Klavye Tasarımı
+
+```
+Q W E R T Y U I O P
+ A S D F G H J K L
+ENTER Z X C V B N M ⌫
+```
+
+---
+
+## 5. Non-Functional Requirements
+
+### 5.1 Performans
+
+- İlk yükleme: < 2 saniye (Vite + React, küçük bundle)
+- Geçiş animasyonları: 60fps
+- Kelime doğrulama: Anında (client-side)
+
+### 5.2 Erişilebilirlik
+
+- Keyboard navigation: Full destek
+- Screen reader: ARIA labels
+- Yeterli renk kontrastı (WCAG AA)
+
+### 5.3 Güvenlik
+
+- Kullanıcı girişi yok (anonim oyun)
+- LocalStorage dışında veri yok
+- CORS: Herhangi bir API yok
+
+### 5.4 Tarayıcı Desteği
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+---
+
+## 6. Game State Machine
+
+```
+States: IDLE | PLAYING | WIN | LOSE
+
+Generate all screens described in this PRD as separate screen designs. All visible text must be in Turkish. Use a dark, modern theme.
