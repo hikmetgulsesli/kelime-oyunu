@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { GameState, TileState } from './types';
+import { Keyboard } from './components/Keyboard/Keyboard';
 
 function Header() {
   const [showHelp, setShowHelp] = useState(false);
@@ -137,44 +138,24 @@ function GameGrid() {
   );
 }
 
-function Keyboard() {
-  const rows = [
-    ['E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'],
-    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'],
-    ['GÖNDER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç', '⌫'],
-  ];
-
-  return (
-    <div className="w-full max-w-2xl mx-auto p-2 pb-24">
-      <div className="flex flex-col gap-2">
-        {rows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex justify-center gap-1.5">
-            {row.map((key) => (
-              <button
-                key={key}
-                onClick={() => {}}
-                className={`bg-surface-container-highest text-on-surface font-bold rounded-md transition-all active:scale-95 hover:bg-surface-variant cursor-pointer ${
-                  key === 'GÖNDER' ? 'px-4 py-4 text-[10px] w-16' :
-                  key === '⌫' ? 'px-4 py-4 text-sm w-16 flex items-center justify-center' :
-                  'px-3 py-4 text-sm w-10'
-                }`}
-              >
-                {key === '⌫' ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
-                  </svg>
-                ) : key}
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   const [gameState] = useState<GameState>('IDLE');
+  const [keyStates] = useState<Map<string, TileState>>(new Map());
+
+  const handleKeyPress = useCallback((key: string) => {
+    // Placeholder - will be implemented with useGame hook
+    console.log('Key pressed:', key);
+  }, []);
+
+  const handleEnter = useCallback(() => {
+    // Placeholder - will be implemented with useGame hook
+    console.log('Enter pressed');
+  }, []);
+
+  const handleBackspace = useCallback(() => {
+    // Placeholder - will be implemented with useGame hook
+    console.log('Backspace pressed');
+  }, []);
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col overflow-hidden">
@@ -184,7 +165,12 @@ export default function App() {
         <GameGrid />
       </main>
 
-      <Keyboard />
+      <Keyboard 
+        onKeyPress={handleKeyPress}
+        onEnter={handleEnter}
+        onBackspace={handleBackspace}
+        keyStates={keyStates}
+      />
 
       {/* Game State Display (for development) */}
       <div className="fixed bottom-4 left-4 text-xs text-on-surface-variant">
