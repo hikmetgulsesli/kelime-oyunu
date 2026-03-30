@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+.DS_Store
+.setfarm-step-output.txt
+.vercel/
+.turbo/
+.cache/
