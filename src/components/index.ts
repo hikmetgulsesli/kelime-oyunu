@@ -1,3 +1,2 @@
-export { Board } from './Board';
-export { Row } from './Row';
-export { Tile } from './Tile';
+export { Key } from './Key/Key';
+export { Keyboard } from './Keyboard/Keyboard';
