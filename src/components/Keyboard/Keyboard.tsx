@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { TileState } from '../../types';
 import { Key } from '../Key/Key';
 
@@ -36,6 +36,15 @@ export function Keyboard({
 }: KeyboardProps) {
   // Track active keys for press animation
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
+  // Ref to track timeout IDs for cleanup on unmount
+  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutIdsRef.current.forEach(clearTimeout);
+    };
+  }, []);
 
   // Turkish QWERTY layout
   const row1 = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'];
@@ -47,13 +56,14 @@ export function Keyboard({
     setActiveKeys(prev => new Set(prev).add(key));
     
     // Remove from active keys after animation
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       setActiveKeys(prev => {
         const next = new Set(prev);
         next.delete(key);
         return next;
       });
     }, 100);
+    timeoutIdsRef.current.push(timerId);
 
     // Call the callback
     callback?.();

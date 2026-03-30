@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, TileState, type Statistics } from './types';
+import { GameState, TileState, type Statistics } from './types/index';
 import { StatisticsModal } from './components/StatisticsModal';
 import { Toast, type ToastType } from './components/Toast';
 import { Keyboard } from './components/Keyboard';
@@ -164,19 +164,16 @@ export default function App() {
   }, []);
 
   // Keyboard event handlers
-  const handleLetterPress = useCallback((letter: string) => {
+  const handleLetterPress = useCallback((_letter: string) => {
     // Placeholder - will be implemented with useGame hook
-    console.log('Letter pressed:', letter);
   }, []);
 
   const handleEnterPress = useCallback(() => {
     // Placeholder - will be implemented with useGame hook
-    console.log('Enter pressed');
   }, []);
 
   const handleBackspacePress = useCallback(() => {
     // Placeholder - will be implemented with useGame hook
-    console.log('Backspace pressed');
   }, []);
 
   return (
