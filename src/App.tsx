@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, TileState, type Statistics } from './types';
 import { StatisticsModal } from './components/StatisticsModal';
 import { Toast, type ToastType } from './components/Toast';
+import { Keyboard } from './components/Keyboard';
 
 interface ToastState {
   message: string;
@@ -104,44 +105,6 @@ function GameGrid() {
   );
 }
 
-function Keyboard() {
-  const rows = [
-    ['E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'],
-    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'],
-    ['GÖNDER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç', '⌫'],
-  ];
-
-  return (
-    <div className="w-full max-w-2xl mx-auto p-2 pb-24">
-      <div className="flex flex-col gap-2">
-        {rows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex justify-center gap-1.5">
-            {row.map((key) => (
-              <button
-                key={key}
-                onClick={() => {}}
-                className={`bg-surface-container-highest text-on-surface font-bold rounded-md transition-all active:scale-95 hover:bg-surface-variant cursor-pointer ${
-                  key === 'GÖNDER' ? 'px-4 py-4 text-[10px] w-16' :
-                  key === '⌫' ? 'px-4 py-4 text-sm w-16 flex items-center justify-center' :
-                  'px-3 py-4 text-sm w-10'
-                }`}
-              >
-                {key === '⌫' ? (
-                  <span className="material-symbols-outlined">backspace</span>
-                ) : key === 'GÖNDER' ? (
-                  key
-                ) : (
-                  key
-                )}
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // Default statistics for initial state
 const defaultStatistics: Statistics = {
   gamesPlayed: 0,
@@ -152,20 +115,11 @@ const defaultStatistics: Statistics = {
   winPercentage: 0,
 };
 
-// Demo statistics for testing
-const demoStatistics: Statistics = {
-  gamesPlayed: 42,
-  gamesWon: 37,
-  currentStreak: 5,
-  maxStreak: 12,
-  guessDistribution: [1, 6, 18, 10, 4, 3],
-  winPercentage: 88,
-};
-
 export default function App() {
   const [gameState] = useState<GameState>('IDLE');
   const [showStats, setShowStats] = useState(false);
-  const [statistics, setStatistics] = useState<Statistics>(demoStatistics);
+  const [statistics, setStatistics] = useState<Statistics>(defaultStatistics);
+  const [keyStates] = useState<Map<string, TileState>>(new Map());
   const [toast, setToast] = useState<ToastState>({
     message: '',
     type: 'info',
@@ -189,37 +143,41 @@ export default function App() {
             ...parsed,
           });
         });
-      } catch {
-        // Use default statistics if parsing fails
+      } catch (error) {
+        console.error('Failed to parse statistics from localStorage:', error);
+        requestAnimationFrame(() => {
+          setStatistics(defaultStatistics);
+        });
       }
     }
   }, []);
 
-  // Demo function to show toast notifications
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    setToast({ message, type, isVisible: true });
+  // Expose showToast globally for game hook integration
+  useEffect(() => {
+    (window as unknown as { showToast?: (message: string, type: ToastType) => void }).showToast = (message: string, type: ToastType = 'info') => {
+      setToast({ message, type, isVisible: true });
+    };
   }, []);
 
   const hideToast = useCallback(() => {
     setToast(prev => ({ ...prev, isVisible: false }));
   }, []);
 
-  // Demo functions for testing toasts
-  const showInvalidWordToast = useCallback(() => {
-    showToast('Bu kelime geçerli değil', 'error');
-  }, [showToast]);
+  // Keyboard event handlers
+  const handleLetterPress = useCallback((letter: string) => {
+    // Placeholder - will be implemented with useGame hook
+    console.log('Letter pressed:', letter);
+  }, []);
 
-  const showNotEnoughLettersToast = useCallback(() => {
-    showToast('Eksik harf', 'error');
-  }, [showToast]);
+  const handleEnterPress = useCallback(() => {
+    // Placeholder - will be implemented with useGame hook
+    console.log('Enter pressed');
+  }, []);
 
-  const showWinToast = useCallback((guessCount: number) => {
-    showToast(`Tebrikler! ${guessCount} tahminde buldunuz`, 'success');
-  }, [showToast]);
-
-  const showLoseToast = useCallback((word: string) => {
-    showToast(`Bulamadınız. Kelime: ${word}`, 'error');
-  }, [showToast]);
+  const handleBackspacePress = useCallback(() => {
+    // Placeholder - will be implemented with useGame hook
+    console.log('Backspace pressed');
+  }, []);
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col overflow-hidden">
@@ -227,37 +185,16 @@ export default function App() {
 
       <main className="flex-grow flex flex-col items-center justify-center p-4">
         <GameGrid />
-
-        {/* Demo buttons for testing toasts */}
-        <div className="mt-8 flex flex-wrap gap-2 justify-center">
-          <button
-            onClick={showInvalidWordToast}
-            className="px-4 py-2 bg-surface-container-high rounded text-sm font-medium hover:bg-surface-container transition-colors cursor-pointer"
-          >
-            Geçersiz Kelime Testi
-          </button>
-          <button
-            onClick={showNotEnoughLettersToast}
-            className="px-4 py-2 bg-surface-container-high rounded text-sm font-medium hover:bg-surface-container transition-colors cursor-pointer"
-          >
-            Eksik Harf Testi
-          </button>
-          <button
-            onClick={() => showWinToast(3)}
-            className="px-4 py-2 bg-surface-container-high rounded text-sm font-medium hover:bg-surface-container transition-colors cursor-pointer"
-          >
-            Kazanma Testi
-          </button>
-          <button
-            onClick={() => showLoseToast('KİTAP')}
-            className="px-4 py-2 bg-surface-container-high rounded text-sm font-medium hover:bg-surface-container transition-colors cursor-pointer"
-          >
-            Kaybetme Testi
-          </button>
-        </div>
       </main>
 
-      <Keyboard />
+      <div className="w-full max-w-lg mx-auto pb-6 px-2">
+        <Keyboard
+          onLetterPress={handleLetterPress}
+          onEnterPress={handleEnterPress}
+          onBackspacePress={handleBackspacePress}
+          keyStates={keyStates}
+        />
+      </div>
 
       {/* Statistics Modal */}
       <StatisticsModal

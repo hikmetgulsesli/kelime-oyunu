@@ -1,3 +1,4 @@
+import { useEffect, type MouseEvent } from 'react';
 import type { Statistics } from '../types';
 
 interface StatisticsModalProps {
@@ -7,25 +8,53 @@ interface StatisticsModalProps {
 }
 
 export function StatisticsModal({ isOpen, onClose, statistics }: StatisticsModalProps) {
-  if (!isOpen) return null;
-
   const maxDistribution = Math.max(...statistics.guessDistribution, 1);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  // Handle ESC key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  const handleBackdropClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
+  const handleShare = async () => {
+    const shareText = `Kelime Oyunu - ${statistics.gamesPlayed} oyun, %${statistics.winPercentage} kazanma oranı`;
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+    } catch {
+      // Clipboard write failed silently
+    }
+  };
+
+  if (!isOpen) return null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md"
       onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="statistics-modal-title"
       data-testid="statistics-modal"
     >
       <div className="bg-surface-container-high w-full max-w-md rounded-xl p-8 shadow-[0_-4px_40px_-10px_rgba(0,0,0,0.15)] flex flex-col gap-8 border border-white/5">
         <header className="flex flex-col gap-1">
-          <h2 className="text-xl font-bold tracking-tighter text-on-surface uppercase">İSTATİSTİKLER</h2>
+          <h2 id="statistics-modal-title" className="text-xl font-bold tracking-tighter text-on-surface uppercase">İSTATİSTİKLER</h2>
         </header>
 
         {/* Stats Grid */}
@@ -103,10 +132,7 @@ export function StatisticsModal({ isOpen, onClose, statistics }: StatisticsModal
           <div className="h-10 w-[1px] bg-white/10"></div>
           <button
             className="flex-grow bg-primary hover:bg-primary-container text-on-primary py-3 px-6 rounded-xl font-bold tracking-widest text-sm flex items-center justify-center gap-2 active:scale-98 transition-transform cursor-pointer"
-            onClick={() => {
-              // Share functionality - placeholder for future implementation
-              navigator.clipboard?.writeText(`Kelime Oyunu - ${statistics.gamesPlayed} oyun, %${statistics.winPercentage} kazanma oranı`);
-            }}
+            onClick={handleShare}
           >
             PAYLAŞ
             <span className="material-symbols-outlined text-sm">share</span>

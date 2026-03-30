@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { StatisticsModal } from './StatisticsModal';
 import type { Statistics } from '../types';
@@ -13,7 +13,11 @@ describe('StatisticsModal', () => {
     winPercentage: 88,
   };
 
-  const mockOnClose = vi.fn();
+  let mockOnClose: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockOnClose = vi.fn();
+  });
 
   it('does not render when isOpen is false', () => {
     render(<StatisticsModal isOpen={false} onClose={mockOnClose} statistics={mockStatistics} />);
@@ -74,6 +78,23 @@ describe('StatisticsModal', () => {
     fireEvent.click(modal);
 
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('closes when Escape key is pressed', () => {
+    render(<StatisticsModal isOpen={true} onClose={mockOnClose} statistics={mockStatistics} />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('has proper dialog accessibility attributes', () => {
+    render(<StatisticsModal isOpen={true} onClose={mockOnClose} statistics={mockStatistics} />);
+
+    const modal = screen.getByTestId('statistics-modal');
+    expect(modal).toHaveAttribute('role', 'dialog');
+    expect(modal).toHaveAttribute('aria-modal', 'true');
+    expect(modal).toHaveAttribute('aria-labelledby', 'statistics-modal-title');
   });
 
   it('displays zero values correctly', () => {
