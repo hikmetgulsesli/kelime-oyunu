@@ -1,9 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { Keyboard } from './Keyboard';
 import { TileState } from '../../types';
 
 describe('Keyboard', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders keyboard with 3 rows', () => {
     render(
       <Keyboard 
@@ -174,26 +182,36 @@ describe('Keyboard', () => {
     expect(dKey).toHaveAttribute('data-state', 'empty');
   });
 
-  it('shows active animation when key is pressed', async () => {
-    render(
-      <Keyboard 
-        onKeyPress={() => {}} 
-        onEnter={() => {}} 
-        onBackspace={() => {}} 
-      />
-    );
-    
-    const aKey = screen.getByText('A');
-    
-    // Click the key
-    fireEvent.click(aKey);
-    
-    // Key should have active animation class immediately after click
-    expect(aKey.className).toContain('scale-90');
-    
-    // Wait for animation to clear
-    await waitFor(() => {
+  it('shows active animation when key is pressed', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <Keyboard 
+          onKeyPress={() => {}} 
+          onEnter={() => {}} 
+          onBackspace={() => {}} 
+        />
+      );
+      
+      const aKey = screen.getByText('A');
+      
+      // Click the key wrapped in act
+      act(() => {
+        fireEvent.click(aKey);
+      });
+      
+      // Key should have active animation class immediately after click
+      expect(aKey.className).toContain('scale-90');
+      
+      // Advance timers to let the animation timeout complete
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      
+      // After timeout, animation class should be removed
       expect(aKey.className).not.toContain('scale-90');
-    }, { timeout: 200 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

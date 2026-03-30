@@ -8,6 +8,15 @@ interface KeyProps {
   isActive?: boolean;
 }
 
+// State-based styling - declarative lookup
+const stateClasses: Record<TileState, string> = {
+  'correct': 'bg-primary text-on-primary',
+  'present': 'bg-secondary text-on-secondary',
+  'absent': 'bg-surface-variant text-on-surface-variant',
+  'filled': 'bg-surface-container-highest text-on-surface border border-outline-variant',
+  'empty': 'bg-surface-container-highest text-on-surface',
+};
+
 /**
  * Key component - Individual keyboard key
  * 
@@ -40,22 +49,6 @@ export function Key({
     ? 'flex-1 min-w-[3.5rem] px-2' 
     : 'w-8 sm:w-10';
 
-  // State-based styling
-  const getStateClasses = (): string => {
-    switch (state) {
-      case 'correct':
-        return 'bg-primary text-on-primary';
-      case 'present':
-        return 'bg-secondary text-on-secondary';
-      case 'absent':
-        return 'bg-surface-variant text-on-surface-variant';
-      case 'filled':
-        return 'bg-surface-container-highest text-on-surface border border-outline-variant';
-      default:
-        return 'bg-surface-container-highest text-on-surface';
-    }
-  };
-
   // Active state animation
   const activeClasses = isActive ? 'scale-90 brightness-110' : '';
 
@@ -64,14 +57,20 @@ export function Key({
     : letter === 'BACKSPACE' ? '⌫' 
     : letter;
 
+  // Accessible label for special keys
+  const ariaLabel = letter === 'ENTER' ? 'Gönder' 
+    : letter === 'BACKSPACE' ? 'Sil' 
+    : undefined;
+
   return (
     <button
-      className={`${baseClasses} ${widthClasses} ${getStateClasses()} ${activeClasses}`}
+      className={`${baseClasses} ${widthClasses} ${stateClasses[state]} ${activeClasses}`}
       onClick={onClick}
       data-testid="key"
       data-key={letter}
       data-state={state}
       type="button"
+      aria-label={ariaLabel}
     >
       {displayText}
     </button>
