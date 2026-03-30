@@ -570,6 +570,6 @@ export const WORD_COUNT = VALID_WORDS.length;
  * Case-insensitive comparison
  */
 export function isValidWord(word: string): boolean {
-  const normalizedWord = word.toUpperCase();
+  const normalizedWord = word.toLocaleUpperCase('tr-TR');
   return VALID_WORDS.includes(normalizedWord);
 }

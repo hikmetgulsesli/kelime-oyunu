@@ -34,16 +34,28 @@ export function getYesterday(): string {
  * Used for generating consistent daily seeds
  */
 export function getDaysSinceEpoch(dateString: string): number {
-  const date = new Date(dateString);
-  
-  if (isNaN(date.getTime())) {
+  const [yearStr, monthStr, dayStr] = dateString.split('-');
+
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day)
+  ) {
     throw new Error(`Invalid date string: ${dateString}`);
   }
-  
-  // Get UTC midnight of the date
-  const utcDate = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+
+  // Treat the input as a UTC calendar date at midnight
+  const utcDate = Date.UTC(year, month - 1, day);
   const epoch = Date.UTC(1970, 0, 1);
-  
+
+  if (!Number.isFinite(utcDate)) {
+    throw new Error(`Invalid date string: ${dateString}`);
+  }
+
   return Math.floor((utcDate - epoch) / (1000 * 60 * 60 * 24));
 }
 
@@ -72,8 +84,12 @@ export function isValidDateString(dateString: string): boolean {
     return false;
   }
   
-  const date = new Date(dateString);
-  return !isNaN(date.getTime());
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  
+  return date.getUTCFullYear() === year &&
+         date.getUTCMonth() === month - 1 &&
+         date.getUTCDate() === day;
 }
 
 /**

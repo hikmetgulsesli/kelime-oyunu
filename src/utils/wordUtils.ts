@@ -4,6 +4,7 @@
  */
 
 import { VALID_WORDS } from '../data/validWords';
+import { getDailySeed, getToday } from './dateUtils';
 
 /**
  * Letter evaluation result
@@ -23,20 +24,21 @@ export interface PositionResult {
  * Returns consistent word for the same date across refreshes
  */
 export function getDailyWord(dateString: string): string {
-  // Parse the date
-  const date = new Date(dateString);
-  
-  if (isNaN(date.getTime())) {
-    throw new Error(`Invalid date string: ${dateString}`);
-  }
-  
-  // Create a seed from the date (days since epoch)
-  const seed = Math.floor(date.getTime() / (1000 * 60 * 60 * 24));
-  
-  // Use seeded random to select word
+  const seed = getDailySeed(dateString);
   const index = seededRandom(seed, VALID_WORDS.length);
-  
   return VALID_WORDS[index];
+}
+
+/**
+ * Set for O(1) word lookup
+ */
+const VALID_WORDS_SET = new Set(VALID_WORDS);
+
+/**
+ * Normalize a string for Turkish case-insensitive comparison
+ */
+function turkishToUpper(word: string): string {
+  return word.toLocaleUpperCase('tr-TR');
 }
 
 /**
@@ -47,8 +49,8 @@ export function isValidGuess(word: string): boolean {
     return false;
   }
   
-  const normalizedWord = word.toUpperCase();
-  return VALID_WORDS.includes(normalizedWord);
+  const normalizedWord = turkishToUpper(word);
+  return VALID_WORDS_SET.has(normalizedWord);
 }
 
 /**
@@ -66,9 +68,9 @@ export function isValidGuess(word: string): boolean {
  *   - Second 'A' → 'absent' (target only has 1 'A')
  */
 export function evaluateGuess(guess: string, target: string): PositionResult[] {
-  // Normalize inputs
-  const normalizedGuess = guess.toUpperCase();
-  const normalizedTarget = target.toUpperCase();
+  // Normalize inputs with Turkish locale
+  const normalizedGuess = guess.toLocaleUpperCase('tr-TR');
+  const normalizedTarget = target.toLocaleUpperCase('tr-TR');
   
   if (normalizedGuess.length !== 5 || normalizedTarget.length !== 5) {
     throw new Error('Both guess and target must be 5 letters long');
@@ -141,6 +143,6 @@ export function getRandomWord(): string {
  * Get word of the day for today
  */
 export function getTodaysWord(): string {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getToday();
   return getDailyWord(today);
 }
