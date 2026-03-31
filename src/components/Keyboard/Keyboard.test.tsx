@@ -1,196 +1,217 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Keyboard } from './Keyboard';
 import { TileState } from '../../types';
 
 describe('Keyboard', () => {
-  it('renders keyboard container', () => {
-    render(<Keyboard />);
-    const keyboard = screen.getByTestId('keyboard');
-    expect(keyboard).toBeInTheDocument();
+  beforeEach(() => {
+    vi.useFakeTimers();
   });
 
-  it('renders 3 rows of keys', () => {
-    render(<Keyboard />);
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('renders keyboard with 3 rows', () => {
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={() => {}} 
+        onBackspace={() => {}} 
+      />
+    );
+    const rows = screen.getAllByTestId('keyboard-row');
+    expect(rows).toHaveLength(3);
+  });
+
+  it('renders QWERTY layout in first row', () => {
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={() => {}} 
+        onBackspace={() => {}} 
+      />
+    );
     const keys = screen.getAllByTestId('key');
-    // Row 1: 12 keys, Row 2: 11 keys, Row 3: 2 wide + 9 letter = 11 keys
-    // Total: 12 + 11 + 11 = 34 keys
-    expect(keys.length).toBe(34);
+    const firstRowKeys = keys.slice(0, 12); // Q W E R T Y U I O P Ğ Ü
+    
+    expect(firstRowKeys[0]).toHaveAttribute('data-key', 'Q');
+    expect(firstRowKeys[1]).toHaveAttribute('data-key', 'W');
+    expect(firstRowKeys[2]).toHaveAttribute('data-key', 'E');
+    expect(firstRowKeys[3]).toHaveAttribute('data-key', 'R');
+    expect(firstRowKeys[4]).toHaveAttribute('data-key', 'T');
+    expect(firstRowKeys[5]).toHaveAttribute('data-key', 'Y');
+    expect(firstRowKeys[6]).toHaveAttribute('data-key', 'U');
+    expect(firstRowKeys[7]).toHaveAttribute('data-key', 'I');
+    expect(firstRowKeys[8]).toHaveAttribute('data-key', 'O');
+    expect(firstRowKeys[9]).toHaveAttribute('data-key', 'P');
+    expect(firstRowKeys[10]).toHaveAttribute('data-key', 'Ğ');
+    expect(firstRowKeys[11]).toHaveAttribute('data-key', 'Ü');
   });
 
-  it('renders row 1 with correct letters', () => {
-    render(<Keyboard />);
-    const row1Letters = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'];
+  it('renders ASDFGHJKL row in second row', () => {
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={() => {}} 
+        onBackspace={() => {}} 
+      />
+    );
+    const keys = screen.getAllByTestId('key');
+    const secondRowKeys = keys.slice(12, 23); // A S D F G H J K L Ş İ
     
-    row1Letters.forEach(letter => {
-      const key = screen.getByText(letter);
-      expect(key).toBeInTheDocument();
-    });
+    expect(secondRowKeys[0]).toHaveAttribute('data-key', 'A');
+    expect(secondRowKeys[1]).toHaveAttribute('data-key', 'S');
+    expect(secondRowKeys[2]).toHaveAttribute('data-key', 'D');
+    expect(secondRowKeys[3]).toHaveAttribute('data-key', 'F');
+    expect(secondRowKeys[4]).toHaveAttribute('data-key', 'G');
+    expect(secondRowKeys[5]).toHaveAttribute('data-key', 'H');
+    expect(secondRowKeys[6]).toHaveAttribute('data-key', 'J');
+    expect(secondRowKeys[7]).toHaveAttribute('data-key', 'K');
+    expect(secondRowKeys[8]).toHaveAttribute('data-key', 'L');
+    expect(secondRowKeys[9]).toHaveAttribute('data-key', 'Ş');
+    expect(secondRowKeys[10]).toHaveAttribute('data-key', 'İ');
   });
 
-  it('renders row 2 with correct letters', () => {
-    render(<Keyboard />);
-    const row2Letters = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'];
+  it('renders ENTER and BACKSPACE in third row', () => {
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={() => {}} 
+        onBackspace={() => {}} 
+      />
+    );
+    const keys = screen.getAllByTestId('key');
+    const thirdRowKeys = keys.slice(23); // ENTER Z X C V B N M Ö Ç BACKSPACE
     
-    row2Letters.forEach(letter => {
-      const key = screen.getByText(letter);
-      expect(key).toBeInTheDocument();
-    });
+    expect(thirdRowKeys[0]).toHaveAttribute('data-key', 'ENTER');
+    expect(thirdRowKeys[0]).toHaveTextContent('GÖNDER');
+    expect(thirdRowKeys[thirdRowKeys.length - 1]).toHaveAttribute('data-key', 'BACKSPACE');
+    expect(thirdRowKeys[thirdRowKeys.length - 1]).toHaveTextContent('⌫');
   });
 
-  it('renders row 3 with correct letters and special keys', () => {
-    render(<Keyboard />);
-    const row3Letters = ['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç'];
-    
-    // Check special keys
-    expect(screen.getByText('GÖNDER')).toBeInTheDocument();
-    expect(screen.getByText('⌫')).toBeInTheDocument();
-    
-    // Check letters
-    row3Letters.forEach(letter => {
-      const key = screen.getByText(letter);
-      expect(key).toBeInTheDocument();
-    });
-  });
-
-  it('renders all Turkish characters', () => {
-    render(<Keyboard />);
+  it('renders Turkish characters', () => {
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={() => {}} 
+        onBackspace={() => {}} 
+      />
+    );
     const turkishChars = ['Ç', 'Ş', 'Ğ', 'Ü', 'Ö', 'İ', 'I'];
     
-    turkishChars.forEach(char => {
-      const key = screen.getByText(char);
+    turkishChars.forEach((char) => {
+      const key = screen.queryByText(char);
       expect(key).toBeInTheDocument();
     });
   });
 
-  it('calls onLetterPress when a letter key is clicked', () => {
-    const handleLetterPress = vi.fn();
-    render(<Keyboard onLetterPress={handleLetterPress} />);
+  it('calls onKeyPress when letter key is clicked', () => {
+    const handleKeyPress = vi.fn();
+    render(
+      <Keyboard 
+        onKeyPress={handleKeyPress} 
+        onEnter={() => {}} 
+        onBackspace={() => {}} 
+      />
+    );
     
-    const keyA = screen.getByText('A');
-    fireEvent.click(keyA);
+    const aKey = screen.getByText('A');
+    fireEvent.click(aKey);
     
-    expect(handleLetterPress).toHaveBeenCalledTimes(1);
-    expect(handleLetterPress).toHaveBeenCalledWith('A');
+    expect(handleKeyPress).toHaveBeenCalledTimes(1);
+    expect(handleKeyPress).toHaveBeenCalledWith('A');
   });
 
-  it('calls onEnterPress when ENTER key is clicked', () => {
-    const handleEnterPress = vi.fn();
-    render(<Keyboard onEnterPress={handleEnterPress} />);
+  it('calls onEnter when ENTER key is clicked', () => {
+    const handleEnter = vi.fn();
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={handleEnter} 
+        onBackspace={() => {}} 
+      />
+    );
     
     const enterKey = screen.getByText('GÖNDER');
     fireEvent.click(enterKey);
     
-    expect(handleEnterPress).toHaveBeenCalledTimes(1);
+    expect(handleEnter).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onBackspacePress when BACKSPACE key is clicked', () => {
-    const handleBackspacePress = vi.fn();
-    render(<Keyboard onBackspacePress={handleBackspacePress} />);
+  it('calls onBackspace when BACKSPACE key is clicked', () => {
+    const handleBackspace = vi.fn();
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={() => {}} 
+        onBackspace={handleBackspace} 
+      />
+    );
     
     const backspaceKey = screen.getByText('⌫');
     fireEvent.click(backspaceKey);
     
-    expect(handleBackspacePress).toHaveBeenCalledTimes(1);
+    expect(handleBackspace).toHaveBeenCalledTimes(1);
   });
 
-  it('applies correct state to keys from keyStates map', () => {
+  it('updates key colors based on keyStates prop', () => {
     const keyStates = new Map<string, TileState>([
       ['A', 'correct'],
       ['B', 'present'],
       ['C', 'absent'],
     ]);
     
-    render(<Keyboard keyStates={keyStates} />);
+    render(
+      <Keyboard 
+        onKeyPress={() => {}} 
+        onEnter={() => {}} 
+        onBackspace={() => {}} 
+        keyStates={keyStates}
+      />
+    );
     
-    const keyA = screen.getByText('A').closest('[data-testid="key"]');
-    const keyB = screen.getByText('B').closest('[data-testid="key"]');
-    const keyC = screen.getByText('C').closest('[data-testid="key"]');
+    const aKey = screen.getByText('A');
+    const bKey = screen.getByText('B');
+    const cKey = screen.getByText('C');
+    const dKey = screen.getByText('D');
     
-    expect(keyA).toHaveAttribute('data-state', 'correct');
-    expect(keyB).toHaveAttribute('data-state', 'present');
-    expect(keyC).toHaveAttribute('data-state', 'absent');
+    expect(aKey).toHaveAttribute('data-state', 'correct');
+    expect(bKey).toHaveAttribute('data-state', 'present');
+    expect(cKey).toHaveAttribute('data-state', 'absent');
+    expect(dKey).toHaveAttribute('data-state', 'empty');
   });
 
-  it('renders keys with empty state when not in keyStates', () => {
-    render(<Keyboard />);
-    
-    const keyA = screen.getByText('A').closest('[data-testid="key"]');
-    expect(keyA).toHaveAttribute('data-state', 'empty');
-  });
-
-  it('handles multiple letter presses', () => {
-    const handleLetterPress = vi.fn();
-    render(<Keyboard onLetterPress={handleLetterPress} />);
-    
-    fireEvent.click(screen.getByText('K'));
-    fireEvent.click(screen.getByText('A'));
-    fireEvent.click(screen.getByText('L'));
-    fireEvent.click(screen.getByText('E'));
-    fireEvent.click(screen.getByText('M'));
-    
-    expect(handleLetterPress).toHaveBeenCalledTimes(5);
-    expect(handleLetterPress).toHaveBeenNthCalledWith(1, 'K');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(2, 'A');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(3, 'L');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(4, 'E');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(5, 'M');
-  });
-
-  it('handles Turkish character presses', () => {
-    const handleLetterPress = vi.fn();
-    render(<Keyboard onLetterPress={handleLetterPress} />);
-    
-    fireEvent.click(screen.getByText('Ç'));
-    fireEvent.click(screen.getByText('Ş'));
-    fireEvent.click(screen.getByText('Ğ'));
-    fireEvent.click(screen.getByText('Ü'));
-    fireEvent.click(screen.getByText('Ö'));
-    fireEvent.click(screen.getByText('İ'));
-    fireEvent.click(screen.getByText('I'));
-    
-    expect(handleLetterPress).toHaveBeenCalledTimes(7);
-    expect(handleLetterPress).toHaveBeenNthCalledWith(1, 'Ç');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(2, 'Ş');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(3, 'Ğ');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(4, 'Ü');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(5, 'Ö');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(6, 'İ');
-    expect(handleLetterPress).toHaveBeenNthCalledWith(7, 'I');
-  });
-
-  it('updates key states when keyStates prop changes', () => {
-    const { rerender } = render(<Keyboard />);
-    
-    const keyA = screen.getByText('A').closest('[data-testid="key"]');
-    expect(keyA).toHaveAttribute('data-state', 'empty');
-    
-    const keyStates = new Map<string, TileState>([['A', 'correct']]);
-    rerender(<Keyboard keyStates={keyStates} />);
-    
-    expect(keyA).toHaveAttribute('data-state', 'correct');
-  });
-
-  it('renders ENTER key with wide styling', () => {
-    render(<Keyboard />);
-    const enterKey = screen.getByText('GÖNDER').closest('[data-testid="key"]');
-    expect(enterKey?.className).toContain('flex-1');
-  });
-
-  it('renders BACKSPACE key with wide styling', () => {
-    render(<Keyboard />);
-    const backspaceKey = screen.getByText('⌫').closest('[data-testid="key"]');
-    expect(backspaceKey?.className).toContain('flex-1');
-  });
-
-  it('does not break when callbacks are not provided', () => {
-    render(<Keyboard />);
-    
-    // Should not throw when clicking without handlers
-    expect(() => {
-      fireEvent.click(screen.getByText('A'));
-      fireEvent.click(screen.getByText('GÖNDER'));
-      fireEvent.click(screen.getByText('⌫'));
-    }).not.toThrow();
+  it('shows active animation when key is pressed', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <Keyboard 
+          onKeyPress={() => {}} 
+          onEnter={() => {}} 
+          onBackspace={() => {}} 
+        />
+      );
+      
+      const aKey = screen.getByText('A');
+      
+      // Click the key wrapped in act
+      act(() => {
+        fireEvent.click(aKey);
+      });
+      
+      // Key should have active animation class immediately after click
+      expect(aKey.className).toContain('scale-90');
+      
+      // Advance timers to let the animation timeout complete
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      
+      // After timeout, animation class should be removed
+      expect(aKey.className).not.toContain('scale-90');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

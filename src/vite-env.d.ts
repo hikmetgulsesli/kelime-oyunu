@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+/// <reference types="vite/client" />
 
 declare module '*.css' {
   const content: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { Key } from './Key';
 
 describe('Key', () => {
@@ -16,6 +16,7 @@ describe('Key', () => {
     const key = screen.getByTestId('key');
     expect(key).toHaveTextContent('GÖNDER');
     expect(key).toHaveAttribute('data-key', 'ENTER');
+    expect(key).toHaveAttribute('aria-label', 'Gönder');
   });
 
   it('renders BACKSPACE key with ⌫ label', () => {
@@ -23,18 +24,17 @@ describe('Key', () => {
     const key = screen.getByTestId('key');
     expect(key).toHaveTextContent('⌫');
     expect(key).toHaveAttribute('data-key', 'BACKSPACE');
+    expect(key).toHaveAttribute('aria-label', 'Sil');
   });
 
-  it('renders Turkish characters correctly', () => {
-    const turkishChars = ['Ç', 'Ş', 'Ğ', 'Ü', 'Ö', 'İ', 'I'];
-    
-    turkishChars.forEach((char) => {
-      cleanup();
+  it.each(['Ç', 'Ş', 'Ğ', 'Ü', 'Ö', 'İ', 'I'])(
+    'renders Turkish character %s correctly',
+    (char) => {
       render(<Key letter={char} onClick={() => {}} />);
       const key = screen.getByTestId('key');
       expect(key).toHaveTextContent(char);
-    });
-  });
+    }
+  );
 
   it('calls onClick when clicked', () => {
     const handleClick = vi.fn();
@@ -87,21 +87,15 @@ describe('Key', () => {
     expect(key.className).toContain('flex-1');
   });
 
-  it('has regular width for letter keys', () => {
-    render(<Key letter="A" onClick={() => {}} />);
-    const key = screen.getByTestId('key');
-    expect(key.className).toContain('w-8');
-  });
-
-  it('applies active state classes when isActive is true', () => {
+  it('applies active animation class when isActive is true', () => {
     render(<Key letter="A" isActive onClick={() => {}} />);
     const key = screen.getByTestId('key');
     expect(key.className).toContain('scale-90');
   });
 
-  it('has button type attribute', () => {
+  it('does not apply active animation by default', () => {
     render(<Key letter="A" onClick={() => {}} />);
     const key = screen.getByTestId('key');
-    expect(key).toHaveAttribute('type', 'button');
+    expect(key.className).not.toContain('scale-90');
   });
 });

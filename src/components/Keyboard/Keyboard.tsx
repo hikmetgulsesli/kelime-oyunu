@@ -3,143 +3,97 @@ import { TileState } from '../../types';
 import { Key } from '../Key/Key';
 
 interface KeyboardProps {
-  /** Current state of each key (correct, present, absent, etc.) */
+  onKeyPress: (key: string) => void;
+  onEnter: () => void;
+  onBackspace: () => void;
   keyStates?: Map<string, TileState>;
-  /** Callback when a letter key is pressed */
-  onLetterPress?: (letter: string) => void;
-  /** Callback when ENTER is pressed */
-  onEnterPress?: () => void;
-  /** Callback when BACKSPACE is pressed */
-  onBackspacePress?: () => void;
 }
 
+// Turkish QWERTY layout - defined outside component to prevent re-computation
+const KEYBOARD_ROWS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'],
+  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç', 'BACKSPACE'],
+];
+
+const isWideKey = (key: string): boolean => {
+  return key === 'ENTER' || key === 'BACKSPACE';
+};
+
+// Stable reference for empty keyStates to prevent unnecessary re-renders
+const EMPTY_KEY_STATES = new Map<string, TileState>();
+
 /**
- * Keyboard component - Virtual QWERTY keyboard with Turkish characters
- * 
- * Layout:
- * - Row 1: Q W E R T Y U I O P
- * - Row 2: A S D F G H J K L
- * - Row 3: ENTER Z X C V B N M ⌫
+ * Keyboard component - QWERTY Turkish virtual keyboard
  * 
  * Features:
- * - Turkish characters: Ç, Ş, Ğ, Ü, Ö, İ, I
- * - Keys update color based on game progress
- * - ENTER triggers submitGuess
- * - BACKSPACE (⌫) triggers deleteLetter
- * - Brief scale animation on key press
+ * - 3-row QWERTY layout with Turkish characters
+ * - ENTER and BACKSPACE (⌫) keys
+ * - Real-time color updates based on letter status
+ * - Active animation on key press
+ * 
+ * Layout:
+ * Row 1: Q W E R T Y U I O P Ğ Ü
+ * Row 2: A S D F G H J K L Ş İ
+ * Row 3: ENTER Z X C V B N M Ö Ç BACKSPACE
+ * 
+ * Turkish characters: Ç, Ş, Ğ, Ü, Ö, İ, I
  */
-export function Keyboard({
-  keyStates = new Map(),
-  onLetterPress,
-  onEnterPress,
-  onBackspacePress,
+export function Keyboard({ 
+  onKeyPress, 
+  onEnter, 
+  onBackspace,
+  keyStates = EMPTY_KEY_STATES
 }: KeyboardProps) {
-  // Track active keys for press animation
-  const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
-  // Ref to track timeout IDs for cleanup on unmount
-  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const timeoutIdRef = useRef<number | undefined>(undefined);
 
-  // Cleanup timeouts on unmount
+  // Clear timeout on unmount
   useEffect(() => {
-    return () => {
-      const ids = timeoutIdsRef.current;
-      ids.forEach(clearTimeout);
-    };
+    return () => clearTimeout(timeoutIdRef.current);
   }, []);
 
-  // Turkish QWERTY layout
-  const row1 = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'];
-  const row2 = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'];
-  const row3 = ['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç'];
+  const handleKeyClick = useCallback((key: string) => {
+    // Set active state for animation
+    setActiveKey(key);
+    // Clear previous timeout if another key is pressed quickly
+    clearTimeout(timeoutIdRef.current);
+    timeoutIdRef.current = window.setTimeout(() => setActiveKey(null), 100);
 
-  const handleKeyPress = useCallback((key: string, callback?: () => void) => {
-    // Add to active keys for animation
-    setActiveKeys(prev => new Set(prev).add(key));
-    
-    // Remove from active keys after animation
-    const timerId = setTimeout(() => {
-      setActiveKeys(prev => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-    }, 100);
-    timeoutIdsRef.current.push(timerId);
-
-    // Call the callback
-    callback?.();
-  }, []);
-
-  const handleLetterClick = (letter: string) => {
-    handleKeyPress(letter, () => onLetterPress?.(letter));
-  };
-
-  const handleEnterClick = () => {
-    handleKeyPress('ENTER', onEnterPress);
-  };
-
-  const handleBackspaceClick = () => {
-    handleKeyPress('BACKSPACE', onBackspacePress);
-  };
-
-  const getKeyState = (letter: string): TileState => {
-    return keyStates.get(letter) ?? 'empty';
-  };
+    // Trigger appropriate action
+    if (key === 'ENTER') {
+      onEnter();
+    } else if (key === 'BACKSPACE') {
+      onBackspace();
+    } else {
+      onKeyPress(key);
+    }
+  }, [onKeyPress, onEnter, onBackspace]);
 
   return (
     <div 
-      className="flex flex-col gap-1.5 w-full max-w-lg px-1"
+      className="w-full max-w-2xl mx-auto p-2"
       data-testid="keyboard"
     >
-      {/* Row 1: Q W E R T Y U I O P Ğ Ü */}
-      <div className="flex gap-1 justify-center">
-        {row1.map((letter) => (
-          <Key
-            key={letter}
-            letter={letter}
-            state={getKeyState(letter)}
-            onClick={() => handleLetterClick(letter)}
-            isActive={activeKeys.has(letter)}
-          />
+      <div className="flex flex-col gap-2">
+        {KEYBOARD_ROWS.map((row, rowIndex) => (
+          <div 
+            key={rowIndex} 
+            className="flex justify-center gap-1.5"
+            data-testid="keyboard-row"
+          >
+            {row.map((key) => (
+              <Key
+                key={key}
+                letter={key}
+                state={keyStates.get(key) || 'empty'}
+                isWide={isWideKey(key)}
+                onClick={() => handleKeyClick(key)}
+                isActive={activeKey === key}
+              />
+            ))}
+          </div>
         ))}
-      </div>
-
-      {/* Row 2: A S D F G H J K L Ş İ */}
-      <div className="flex gap-1 justify-center">
-        {row2.map((letter) => (
-          <Key
-            key={letter}
-            letter={letter}
-            state={getKeyState(letter)}
-            onClick={() => handleLetterClick(letter)}
-            isActive={activeKeys.has(letter)}
-          />
-        ))}
-      </div>
-
-      {/* Row 3: ENTER Z X C V B N M Ö Ç ⌫ */}
-      <div className="flex gap-1 justify-center">
-        <Key
-          letter="ENTER"
-          isWide
-          onClick={handleEnterClick}
-          isActive={activeKeys.has('ENTER')}
-        />
-        {row3.map((letter) => (
-          <Key
-            key={letter}
-            letter={letter}
-            state={getKeyState(letter)}
-            onClick={() => handleLetterClick(letter)}
-            isActive={activeKeys.has(letter)}
-          />
-        ))}
-        <Key
-          letter="BACKSPACE"
-          isWide
-          onClick={handleBackspaceClick}
-          isActive={activeKeys.has('BACKSPACE')}
-        />
       </div>
     </div>
   );
