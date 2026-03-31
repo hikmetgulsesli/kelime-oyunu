@@ -341,6 +341,7 @@ export default function App() {
     bouncingRow,
     toast,
     dismissToast,
+    targetWord,
   } = useGame();
 
   const [showHelp, setShowHelp] = useState(false);
@@ -446,7 +447,7 @@ export default function App() {
               <p className="text-on-surface-variant text-sm mb-8 font-medium">
                 {state === 'WIN' 
                   ? `Kelimeyi ${currentRow + 1}. denemede buldun.` 
-                  : `Doğru kelime: ${grid.flat().map(t => t.letter).join('')}`}
+                  : `Doğru kelime: ${targetWord}`}
               </p>
               
               <button

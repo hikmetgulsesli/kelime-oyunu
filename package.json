@@ -15,7 +15,13 @@
     "type": "git",
     "url": "git+https://github.com/hikmetgulsesli/kelime-oyunu.git"
   },
-  "keywords": ["wordle", "kelime", "oyun", "türkçe", "react"],
+  "keywords": [
+    "wordle",
+    "kelime",
+    "oyun",
+    "türkçe",
+    "react"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
@@ -23,6 +29,8 @@
   },
   "homepage": "https://github.com/hikmetgulsesli/kelime-oyunu#readme",
   "dependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^15.0.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

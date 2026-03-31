@@ -114,3 +114,11 @@
 .animate-bounce-tile {
   animation: bounce-tile 0.5s ease-in-out;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shake,
+  .animate-flip,
+  .animate-bounce-tile {
+    animation: none;
+  }
+}

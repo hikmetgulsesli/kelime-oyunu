@@ -21,6 +21,7 @@ interface UseGameReturn {
   bouncingRow: number | null;
   toast: { message: string; type: 'info' | 'success' | 'error'; visible: boolean } | null;
   dismissToast: () => void;
+  targetWord: string;
 }
 
 function createEmptyGrid(): Grid {
@@ -67,14 +68,12 @@ export function useGame(): UseGameReturn {
   const [bouncingRow, setBouncingRow] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'error'; visible: boolean } | null>(null);
   
-  const targetWordRef = useRef(getTodaysWord());
+  const [targetWord, setTargetWord] = useState(getTodaysWord());
+  const targetWordRef = useRef(targetWord);
   const guessesRef = useRef<string[]>([]);
 
   const showToast = useCallback((message: string, type: 'info' | 'success' | 'error' = 'info') => {
     setToast({ message, type, visible: true });
-    setTimeout(() => {
-      setToast(prev => prev ? { ...prev, visible: false } : null);
-    }, 2000);
   }, []);
 
   const dismissToast = useCallback(() => {
@@ -219,12 +218,14 @@ export function useGame(): UseGameReturn {
   }, [state, currentRow, currentCol, grid, showToast, updateKeyboardState]);
 
   const reset = useCallback(() => {
+    const newWord = getTodaysWord();
     setState('PLAYING');
     setGrid(createEmptyGrid());
     setCurrentRow(0);
     setCurrentCol(0);
     setKeyboardState(new Map());
-    targetWordRef.current = getTodaysWord();
+    setTargetWord(newWord);
+    targetWordRef.current = newWord;
     guessesRef.current = [];
     setShakingRow(null);
     setFlippingRow(null);
@@ -252,5 +253,6 @@ export function useGame(): UseGameReturn {
     bouncingRow,
     toast,
     dismissToast,
+    targetWord,
   };
 }
