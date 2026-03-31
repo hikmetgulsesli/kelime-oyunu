@@ -187,9 +187,9 @@ export default function App() {
 
       <div className="w-full max-w-lg mx-auto pb-6 px-2">
         <Keyboard
-          onLetterPress={handleLetterPress}
-          onEnterPress={handleEnterPress}
-          onBackspacePress={handleBackspacePress}
+          onKeyPress={handleLetterPress}
+          onEnter={handleEnterPress}
+          onBackspace={handleBackspacePress}
           keyStates={keyStates}
         />
       </div>
