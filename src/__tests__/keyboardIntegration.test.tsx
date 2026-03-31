@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '../App';
 
@@ -20,8 +20,11 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
 };
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
+beforeEach(() => {
+  vi.stubGlobal('localStorage', localStorageMock);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 // Mock word utilities
@@ -120,8 +123,9 @@ describe('Keyboard Integration', () => {
     fireEvent.keyDown(window, { key: 'Backspace' });
     fireEvent.keyDown(window, { key: 'a' });
     
-    // If we get here without errors, the test passes
-    expect(true).toBe(true);
+    // Verify the letter was added to the grid
+    const tiles = screen.getAllByTestId('tile');
+    expect(tiles[0]).toHaveTextContent('A');
   });
 
   it('should not prevent default for non-game keys', () => {

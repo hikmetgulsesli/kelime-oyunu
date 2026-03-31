@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useGame } from './useGame';
 
@@ -8,9 +8,6 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
 };
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
 
 // Mock word utilities
 vi.mock('../utils/wordUtils', () => ({
@@ -34,7 +31,12 @@ vi.mock('../utils/wordUtils', () => ({
 describe('useGame', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('localStorage', localStorageMock);
     localStorageMock.getItem.mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should initialize with PLAYING state', () => {
