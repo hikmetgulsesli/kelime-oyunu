@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 @theme {
   /* Design Tokens - Color Palette */
   --color-background: #121213;
@@ -83,40 +85,64 @@
   --spacing-gap-lg: 1rem;
 }
 
-/* Animations */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
-
+/* Tile Flip Animation */
 @keyframes flip {
-  0% { transform: rotateX(0); }
-  50% { transform: rotateX(90deg); }
-  100% { transform: rotateX(0); }
+  0% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
 }
 
-@keyframes bounce-tile {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+/* Tile Shake Animation */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+/* Tile Bounce Animation */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Animation utility classes */
+.animate-flip {
+  animation: flip 500ms ease-in-out forwards;
 }
 
 .animate-shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-.animate-flip {
-  animation: flip 0.5s ease-in-out;
+  animation: shake 600ms ease-in-out forwards;
 }
 
 .animate-bounce-tile {
-  animation: bounce-tile 0.5s ease-in-out;
+  animation: bounce 500ms ease-in-out forwards;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-shake,
-  .animate-flip,
-  .animate-bounce-tile {
-    animation: none;
-  }
+/* Perspective for flip animation */
+.perspective-500 {
+  perspective: 500px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
 }
