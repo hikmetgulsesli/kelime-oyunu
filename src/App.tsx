@@ -150,6 +150,7 @@ function Key({
       data-key={letter}
       data-state={state}
       type="button"
+      aria-label={letter === 'BACKSPACE' ? 'Sil' : letter === 'ENTER' ? 'Gönder' : undefined}
     >
       {displayText}
     </button>
@@ -283,13 +284,15 @@ function StatisticsModal({
   onClose, 
   gameState,
   targetWord,
-  guessCount 
+  guessCount,
+  grid
 }: { 
   statistics: Statistics;
   onClose: () => void;
   gameState: GameState;
   targetWord: string;
   guessCount: number;
+  grid: { letter: string; state: TileState }[][];
 }) {
   const maxDistribution = Math.max(...statistics.guessDistribution, 1);
   
@@ -316,19 +319,48 @@ function StatisticsModal({
     return () => clearInterval(interval);
   }, []);
 
-  const handleShare = () => {
-    const emoji = gameState === 'WIN' 
-      ? statistics.guessDistribution.map((count, i) => 
-          i === guessCount - 1 ? '🟩' : count > 0 ? '⬛' : '⬛'
-        ).join('')
-      : '⬛⬛⬛⬛⬛⬛';
+  const handleShare = async () => {
+    let emojiGrid = '';
+    const rowsToShow = gameState === 'WIN' ? guessCount : 6;
     
-    const text = `KELİME ${gameState === 'WIN' ? guessCount : 'X'}/6\n${emoji}`;
+    for (let i = 0; i < rowsToShow; i++) {
+      for (let j = 0; j < 5; j++) {
+        const tile = grid[i][j];
+        switch (tile.state) {
+          case 'correct':
+            emojiGrid += '🟩';
+            break;
+          case 'present':
+            emojiGrid += '🟨';
+            break;
+          case 'absent':
+            emojiGrid += '⬛';
+            break;
+          default:
+            emojiGrid += '⬜';
+        }
+      }
+      if (i < rowsToShow - 1) {
+        emojiGrid += '\n';
+      }
+    }
     
-    if (navigator.share) {
-      navigator.share({ text });
-    } else {
-      navigator.clipboard.writeText(text);
+    const text = `KELİME ${gameState === 'WIN' ? guessCount : 'X'}/6\n\n${emojiGrid}`;
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        window.prompt('Metni kopyalamak için Ctrl+C / Cmd+C kullanın:', text);
+      }
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'name' in error && (error as {name: string}).name === 'AbortError') {
+        return;
+      }
+      console.error('Paylaşım başarısız oldu:', error);
+      window.alert('Paylaşım sırasında bir hata oluştu. Lütfen tekrar deneyin.');
     }
   };
 
@@ -516,6 +548,7 @@ export default function App() {
           gameState={state}
           targetWord={targetWord}
           guessCount={currentRow + (state === 'WIN' ? 1 : 0)}
+          grid={grid}
         />
       )}
 

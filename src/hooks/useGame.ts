@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, TileState, Grid, Statistics } from '../types';
 import { getTodaysWord, isValidGuess, evaluateGuess } from '../utils/wordUtils';
 
 const MAX_ATTEMPTS = 6;
 const WORD_LENGTH = 5;
+const STATISTICS_KEY = 'kelime-stats';
 
 interface UseGameReturn {
   state: GameState;
@@ -31,7 +32,7 @@ function createEmptyGrid(): Grid {
 
 function loadStatistics(): Statistics {
   try {
-    const saved = localStorage.getItem('kelime-stats');
+    const saved = localStorage.getItem(STATISTICS_KEY);
     if (saved) {
       return JSON.parse(saved);
     }
@@ -50,7 +51,7 @@ function loadStatistics(): Statistics {
 
 function saveStatistics(stats: Statistics): void {
   try {
-    localStorage.setItem('kelime-stats', JSON.stringify(stats));
+    localStorage.setItem(STATISTICS_KEY, JSON.stringify(stats));
   } catch {
     // Ignore localStorage errors
   }
@@ -68,6 +69,14 @@ export function useGame(): UseGameReturn {
   const [shakingRow, setShakingRow] = useState<number | null>(null);
   const [flippingRow, setFlippingRow] = useState<number | null>(null);
   const [bouncingRow, setBouncingRow] = useState<number | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Start game on first interaction
   const startGame = useCallback(() => {
@@ -138,7 +147,9 @@ export function useGame(): UseGameReturn {
     if (currentCol < WORD_LENGTH) {
       // Shake animation for incomplete word
       setShakingRow(currentRow);
-      setTimeout(() => setShakingRow(null), 500);
+      setTimeout(() => {
+        if (isMountedRef.current) setShakingRow(null);
+      }, 500);
       return { success: false, message: 'Eksik harf' };
     }
     
@@ -147,7 +158,9 @@ export function useGame(): UseGameReturn {
     if (!isValidGuess(currentGuess)) {
       // Shake animation for invalid word
       setShakingRow(currentRow);
-      setTimeout(() => setShakingRow(null), 500);
+      setTimeout(() => {
+        if (isMountedRef.current) setShakingRow(null);
+      }, 500);
       return { success: false, message: 'Geçersiz kelime' };
     }
     
@@ -163,6 +176,7 @@ export function useGame(): UseGameReturn {
     
     // Update grid with results after a short delay for animation
     setTimeout(() => {
+      if (!isMountedRef.current) return;
       setGrid(prev => {
         const newGrid = prev.map(row => [...row]);
         evaluation.forEach((result, index) => {
@@ -183,7 +197,9 @@ export function useGame(): UseGameReturn {
       if (isCorrect) {
         setState('WIN');
         setBouncingRow(currentRow);
-        setTimeout(() => setBouncingRow(null), 1500);
+        setTimeout(() => {
+          if (isMountedRef.current) setBouncingRow(null);
+        }, 1500);
         
         // Update statistics
         setStatistics(prev => {
