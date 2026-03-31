@@ -1,208 +1,8 @@
-import { useState, useEffect } from 'react';
-import { GameState, TileState, Statistics } from './types';
+import { useState, useEffect, useCallback } from 'react';
+import type { GameState, TileState, Statistics } from './types';
 import { useGame } from './hooks/useGame';
 
-// Header Component
-function Header({ 
-  onStatsClick, 
-  onHelpClick 
-}: { 
-  onStatsClick: () => void;
-  onHelpClick: () => void;
-}) {
-  return (
-    <header className="bg-surface-dim flex justify-between items-center w-full px-4 h-16 max-w-2xl mx-auto sticky top-0 z-40">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onHelpClick}
-          className="text-on-surface hover:bg-surface-variant/20 transition-colors rounded-full p-2 cursor-pointer"
-          aria-label="Yardım"
-        >
-          <span className="material-symbols-outlined text-2xl">help</span>
-        </button>
-      </div>
-      <h1 className="text-2xl font-black tracking-widest text-on-surface font-headline">KELİME</h1>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onStatsClick}
-          className="text-primary hover:bg-surface-variant/20 transition-colors rounded-full p-2 cursor-pointer"
-          aria-label="İstatistikler"
-        >
-          <span className="material-symbols-outlined text-2xl">equalizer</span>
-        </button>
-        <button
-          onClick={() => {}}
-          className="text-on-surface hover:bg-surface-variant/20 transition-colors rounded-full p-2 cursor-pointer"
-          aria-label="Ayarlar"
-        >
-          <span className="material-symbols-outlined text-2xl">settings</span>
-        </button>
-      </div>
-    </header>
-  );
-}
-
-// Tile Component
-function Tile({ 
-  letter, 
-  state, 
-  isFlipping = false,
-  isBouncing = false,
-  delay = 0 
-}: { 
-  letter: string; 
-  state: TileState;
-  isFlipping?: boolean;
-  isBouncing?: boolean;
-  delay?: number;
-}) {
-  const stateClasses = {
-    empty: 'bg-surface-container-highest',
-    filled: 'bg-surface-container-highest text-on-surface border-2 border-outline',
-    correct: 'bg-primary text-on-primary',
-    present: 'bg-secondary text-on-secondary',
-    absent: 'bg-surface-variant text-on-surface-variant',
-  };
-
-  return (
-    <div
-      className={`w-[clamp(43px,12vw,58px)] h-[clamp(43px,12vw,58px)] flex items-center justify-center text-2xl font-bold rounded-sm uppercase transition-all duration-300 ${stateClasses[state]} ${
-        isFlipping ? 'animate-flip' : ''
-      } ${isBouncing ? 'animate-bounce-tile' : ''}`}
-      style={{
-        animationDelay: isFlipping || isBouncing ? `${delay}ms` : undefined,
-      }}
-      data-testid="tile"
-      data-state={state}
-    >
-      {letter}
-    </div>
-  );
-}
-
-// Board Component
-function Board({ 
-  grid, 
-  shakingRow,
-  bouncingRow,
-  flippingRow 
-}: { 
-  grid: { letter: string; state: TileState }[][];
-  shakingRow?: number | null;
-  bouncingRow?: number | null;
-  flippingRow?: number | null;
-}) {
-  return (
-    <div className="grid grid-rows-6 gap-2" data-testid="board">
-      {grid.map((row, rowIndex) => (
-        <div
-          key={rowIndex}
-          className={`grid grid-cols-5 gap-2 ${shakingRow === rowIndex ? 'animate-shake' : ''}`}
-          data-testid="row"
-        >
-          {row.map((tile, colIndex) => (
-            <Tile
-              key={colIndex}
-              letter={tile.letter}
-              state={tile.state}
-              isFlipping={flippingRow === rowIndex}
-              isBouncing={bouncingRow === rowIndex}
-              delay={colIndex * 100}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Key Component
-function Key({ 
-  letter, 
-  state = 'empty', 
-  isWide = false, 
-  onClick 
-}: { 
-  letter: string; 
-  state?: TileState;
-  isWide?: boolean;
-  onClick: () => void;
-}) {
-  const stateClasses = {
-    empty: 'bg-surface-container-highest text-on-surface',
-    filled: 'bg-surface-container-highest text-on-surface border border-outline-variant',
-    correct: 'bg-primary text-on-primary',
-    present: 'bg-secondary text-on-secondary',
-    absent: 'bg-surface-variant text-on-surface-variant',
-  };
-
-  const displayText = letter === 'ENTER' ? 'GÖNDER' 
-    : letter === 'BACKSPACE' ? '⌫' 
-    : letter;
-
-  return (
-    <button
-      className={`flex items-center justify-center h-14 rounded-sm font-bold text-sm transition-all duration-100 ease-out select-none cursor-pointer hover:opacity-90 active:scale-95 ${stateClasses[state]} ${
-        isWide ? 'flex-1 min-w-[3.5rem] px-2' : 'w-8 sm:w-10'
-      }`}
-      onClick={onClick}
-      data-testid="key"
-      data-key={letter}
-      data-state={state}
-      type="button"
-      aria-label={letter === 'BACKSPACE' ? 'Sil' : letter === 'ENTER' ? 'Gönder' : undefined}
-    >
-      {displayText}
-    </button>
-  );
-}
-
-// Keyboard Component
-function Keyboard({ 
-  onKeyPress, 
-  keyboardState 
-}: { 
-  onKeyPress: (key: string) => void;
-  keyboardState: Map<string, TileState>;
-}) {
-  const rows = [
-    ['E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'],
-    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'],
-    ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç', 'BACKSPACE'],
-  ];
-
-  const handleClick = (key: string) => {
-    if (key === 'ENTER') {
-      onKeyPress('Enter');
-    } else if (key === 'BACKSPACE') {
-      onKeyPress('Backspace');
-    } else {
-      onKeyPress(key);
-    }
-  };
-
-  return (
-    <div className="w-full max-w-[500px] mx-auto p-2 pb-8">
-      <div className="flex flex-col gap-2">
-        {rows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex justify-center gap-1.5">
-            {row.map((key) => (
-              <Key
-                key={key}
-                letter={key}
-                state={keyboardState.get(key) || 'empty'}
-                isWide={key === 'ENTER' || key === 'BACKSPACE'}
-                onClick={() => handleClick(key)}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Toast Component
+// Toast component
 interface ToastProps {
   message: string;
   type: 'info' | 'success' | 'error';
@@ -241,128 +41,147 @@ function Toast({ message, type, visible, onDismiss }: ToastProps) {
   );
 }
 
-// Help Modal Component
-function HelpModal({ onClose }: { onClose: () => void }) {
+// Board component
+interface BoardProps {
+  grid: { letter: string; state: TileState }[][];
+  currentRow: number;
+  shakingRow?: number | null;
+  bouncingRow?: number | null;
+  flippingRow?: number | null;
+}
+
+function Board({ grid, shakingRow, bouncingRow, flippingRow }: BoardProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md">
-      <div className="bg-surface-container-high w-full max-w-sm rounded-xl p-6 shadow-lg border border-outline-variant/10 max-h-[80vh] overflow-y-auto">
-        <h2 className="text-xl font-bold text-on-surface mb-4">Nasıl Oynanır?</h2>
-        <p className="text-on-surface-variant text-sm mb-4">
-          5 harfli gizli kelimeyi 6 denemede bulun.
-        </p>
-        <div className="space-y-3 text-sm text-on-surface-variant mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary text-on-primary flex items-center justify-center rounded-sm font-bold">A</div>
-            <span>Yeşil: Harf doğru yerde</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-secondary text-on-secondary flex items-center justify-center rounded-sm font-bold">A</div>
-            <span>Sarı: Harf var ama yanlış yerde</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-surface-variant text-on-surface-variant flex items-center justify-center rounded-sm font-bold">A</div>
-            <span>Gri: Harf kelimede yok</span>
-          </div>
-        </div>
-        <p className="text-on-surface-variant text-sm mb-4">
-          Türkçe karakterler desteklenir: ç, ş, ğ, ü, ö, ı, İ
-        </p>
-        <button
-          onClick={onClose}
-          className="w-full py-3 bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 transition-all cursor-pointer"
+    <div className="grid grid-rows-6 gap-2" data-testid="board">
+      {grid.map((row, rowIndex) => (
+        <div
+          key={rowIndex}
+          className={`grid grid-cols-5 gap-2 ${shakingRow === rowIndex ? 'animate-shake' : ''}`}
+          data-testid="row"
         >
-          KAPAT
-        </button>
+          {row.map((tile, colIndex) => {
+            const isFlipping = flippingRow === rowIndex;
+            const isBouncing = bouncingRow === rowIndex;
+            const delay = colIndex * 100;
+
+            const stateClasses = {
+              empty: 'bg-surface-container-highest',
+              filled: 'bg-surface-container-highest text-on-surface border-2 border-outline',
+              correct: 'bg-primary text-on-primary',
+              present: 'bg-secondary text-on-secondary',
+              absent: 'bg-surface-variant text-on-surface-variant',
+            };
+
+            return (
+              <div
+                key={colIndex}
+                className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center text-2xl font-bold rounded-sm uppercase transition-all duration-300 ${stateClasses[tile.state]} ${
+                  isFlipping ? 'animate-flip' : ''
+                } ${isBouncing ? 'animate-bounce-tile' : ''}`}
+                style={{
+                  animationDelay: isFlipping || isBouncing ? `${delay}ms` : undefined,
+                }}
+                data-testid="tile"
+                data-state={tile.state}
+              >
+                {tile.letter}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Keyboard component
+interface KeyboardProps {
+  onKeyPress: (key: string) => void;
+  keyboardState: Map<string, TileState>;
+}
+
+function Keyboard({ onKeyPress, keyboardState }: KeyboardProps) {
+  const rows = [
+    ['E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'],
+    ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç', 'BACKSPACE'],
+  ];
+
+  const getKeyState = (key: string): TileState => {
+    if (key === 'ENTER' || key === 'BACKSPACE') return 'empty';
+    return keyboardState.get(key) || 'empty';
+  };
+
+  const getKeyClasses = (key: string, state: TileState): string => {
+    const baseClasses = 'flex items-center justify-center h-14 rounded-sm font-bold text-sm transition-all duration-100 ease-out select-none cursor-pointer hover:opacity-90 active:scale-95';
+    
+    const widthClasses = key === 'ENTER' || key === 'BACKSPACE'
+      ? 'flex-1 min-w-[3.5rem] px-2'
+      : 'w-8 sm:w-10';
+
+    const stateClasses: Record<TileState, string> = {
+      correct: 'bg-primary text-on-primary',
+      present: 'bg-secondary text-on-secondary',
+      absent: 'bg-surface-variant text-on-surface-variant',
+      filled: 'bg-surface-container-highest text-on-surface border border-outline-variant',
+      empty: 'bg-surface-container-highest text-on-surface',
+    };
+
+    return `${baseClasses} ${widthClasses} ${stateClasses[state]}`;
+  };
+
+  const getDisplayText = (key: string): string => {
+    if (key === 'ENTER') return 'GÖNDER';
+    if (key === 'BACKSPACE') return '⌫';
+    return key;
+  };
+
+  return (
+    <div className="w-full max-w-2xl mx-auto p-2 pb-24" data-testid="keyboard">
+      <div className="flex flex-col gap-2">
+        {rows.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex justify-center gap-1.5">
+            {row.map((key) => {
+              const state = getKeyState(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => onKeyPress(key)}
+                  className={getKeyClasses(key, state)}
+                  data-testid="key"
+                  data-key={key}
+                  data-state={state}
+                  type="button"
+                >
+                  {getDisplayText(key)}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// Statistics Modal Component
-function StatisticsModal({ 
-  statistics, 
-  onClose, 
-  gameState,
-  targetWord,
-  guessCount,
-  grid
-}: { 
-  statistics: Statistics;
+// Statistics Modal component
+interface StatisticsModalProps {
+  isOpen: boolean;
   onClose: () => void;
-  gameState: GameState;
-  targetWord: string;
-  guessCount: number;
-  grid: { letter: string; state: TileState }[][];
-}) {
-  const maxDistribution = Math.max(...statistics.guessDistribution, 1);
-  
-  // Calculate time until next word
-  const [timeUntilNext, setTimeUntilNext] = useState('');
-  
-  useEffect(() => {
-    const updateTimer = () => {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      
-      const diff = tomorrow.getTime() - now.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      
-      setTimeUntilNext(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
-    };
-    
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleShare = async () => {
-    let emojiGrid = '';
-    const rowsToShow = gameState === 'WIN' ? guessCount : 6;
-    
-    for (let i = 0; i < rowsToShow; i++) {
-      for (let j = 0; j < 5; j++) {
-        const tile = grid[i][j];
-        switch (tile.state) {
-          case 'correct':
-            emojiGrid += '🟩';
-            break;
-          case 'present':
-            emojiGrid += '🟨';
-            break;
-          case 'absent':
-            emojiGrid += '⬛';
-            break;
-          default:
-            emojiGrid += '⬜';
-        }
-      }
-      if (i < rowsToShow - 1) {
-        emojiGrid += '\n';
-      }
-    }
-    
-    const text = `KELİME ${gameState === 'WIN' ? guessCount : 'X'}/6\n\n${emojiGrid}`;
-    
-    try {
-      if (navigator.share) {
-        await navigator.share({ text });
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        window.prompt('Metni kopyalamak için Ctrl+C / Cmd+C kullanın:', text);
-      }
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'name' in error && (error as {name: string}).name === 'AbortError') {
-        return;
-      }
-      console.error('Paylaşım başarısız oldu:', error);
-      window.alert('Paylaşım sırasında bir hata oluştu. Lütfen tekrar deneyin.');
-    }
+  statistics: {
+    gamesPlayed: number;
+    gamesWon: number;
+    currentStreak: number;
+    maxStreak: number;
+    guessDistribution: number[];
+    winPercentage: number;
   };
+}
+
+function StatisticsModal({ isOpen, onClose, statistics }: StatisticsModalProps) {
+  if (!isOpen) return null;
+
+  const maxDistribution = Math.max(...statistics.guessDistribution, 1);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md">
@@ -388,61 +207,25 @@ function StatisticsModal({
           </div>
         </div>
 
-        {/* Guess Distribution */}
-        <div className="mb-6">
-          <h3 className="text-sm font-bold text-on-surface mb-2">Tahmin Dağılımı</h3>
-          <div className="space-y-1">
-            {statistics.guessDistribution.map((count, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-on-surface-variant w-4">{i + 1}</span>
-                <div className="flex-1 bg-surface-container-low rounded-sm h-5 overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-500 flex items-center justify-end px-1"
-                    style={{ width: `${(count / maxDistribution) * 100}%` }}
-                  >
-                    {count > 0 && <span className="text-xs text-on-primary font-bold">{count}</span>}
-                  </div>
-                </div>
+        <h3 className="text-sm font-semibold text-on-surface mb-3">Tahmin Dağılımı</h3>
+        <div className="space-y-2 mb-6">
+          {statistics.guessDistribution.map((count, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <span className="text-sm text-on-surface-variant w-4">{index + 1}</span>
+              <div className="flex-1 h-5 bg-surface-container rounded-sm overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{ width: `${(count / maxDistribution) * 100}%` }}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Game Over Message */}
-        {(gameState === 'WIN' || gameState === 'LOSE') && (
-          <div className="border-t border-outline-variant/20 pt-4 mb-4">
-            {gameState === 'WIN' ? (
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary mb-1">Tebrikler!</p>
-                <p className="text-sm text-on-surface-variant">Kelimeyi {guessCount}. denemede buldun.</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <p className="text-2xl font-bold text-error mb-1">Oyun Bitti</p>
-                <p className="text-sm text-on-surface-variant">Kelime: <span className="font-bold text-on-surface">{targetWord}</span></p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Next Word Timer & Share */}
-        <div className="grid grid-cols-2 gap-4 items-center border-t border-outline-variant/20 pt-4">
-          <div className="text-center">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant mb-1">Sonraki Kelime</p>
-            <p className="text-2xl font-bold font-headline tabular-nums">{timeUntilNext}</p>
-          </div>
-          <button 
-            onClick={handleShare}
-            className="bg-primary hover:brightness-110 active:scale-95 transition-all text-on-primary font-bold py-4 px-6 rounded-full flex items-center justify-center gap-2 shadow-lg shadow-primary/20 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>share</span>
-            PAYLAŞ
-          </button>
+              <span className="text-sm text-on-surface w-6 text-right">{count}</span>
+            </div>
+          ))}
         </div>
 
         <button
           onClick={onClose}
-          className="mt-6 w-full py-3 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-semibold tracking-widest uppercase cursor-pointer"
+          className="w-full py-3 bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 transition-all cursor-pointer"
         >
           KAPAT
         </button>
@@ -451,43 +234,133 @@ function StatisticsModal({
   );
 }
 
-// Main App Component
+// Help Modal component
+interface HelpModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function HelpModal({ isOpen, onClose }: HelpModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md">
+      <div className="bg-surface-container-high w-full max-w-sm rounded-xl p-6 shadow-lg border border-outline-variant/10 max-h-[80vh] overflow-y-auto">
+        <h2 className="text-xl font-bold text-on-surface mb-4">Nasıl Oynanır?</h2>
+        
+        <p className="text-on-surface-variant text-sm mb-4">
+          5 harfli gizli kelimeyi 6 tahminde bulun.
+        </p>
+
+        <div className="space-y-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary text-on-primary flex items-center justify-center font-bold rounded-sm">A</div>
+            <span className="text-sm text-on-surface-variant">Yeşil: Harf doğru yerde</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-secondary text-on-secondary flex items-center justify-center font-bold rounded-sm">B</div>
+            <span className="text-sm text-on-surface-variant">Sarı: Harf var ama yanlış yerde</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-surface-variant text-on-surface-variant flex items-center justify-center font-bold rounded-sm">C</div>
+            <span className="text-sm text-on-surface-variant">Gri: Harf kelimede yok</span>
+          </div>
+        </div>
+
+        <div className="text-sm text-on-surface-variant mb-6 space-y-2">
+          <p>• Her tahmin 5 harfli bir kelime olmalı</p>
+          <p>• Tahmininizi göndermek için GÖNDER tuşuna basın</p>
+          <p>• Fiziksel klavyeyi de kullanabilirsiniz</p>
+          <p>• Türkçe karakterler desteklenir: ç, ş, ğ, ü, ö, ı, i</p>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full py-3 bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 transition-all cursor-pointer"
+        >
+          KAPAT
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Header component
+interface HeaderProps {
+  onHelpClick: () => void;
+  onStatsClick: () => void;
+}
+
+function Header({ onHelpClick, onStatsClick }: HeaderProps) {
+  return (
+    <header className="bg-surface-dim flex justify-between items-center w-full px-4 h-16 max-w-2xl mx-auto sticky top-0 z-40">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onHelpClick}
+          className="text-on-surface hover:bg-surface-variant/20 transition-colors rounded-full p-2 cursor-pointer"
+          aria-label="Yardım"
+        >
+          <span className="material-symbols-outlined text-2xl">help</span>
+        </button>
+      </div>
+      <h1 className="text-2xl font-black tracking-widest text-on-surface font-headline">KELİME</h1>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onStatsClick}
+          className="text-primary hover:bg-surface-variant/20 transition-colors rounded-full p-2 cursor-pointer"
+          aria-label="İstatistikler"
+        >
+          <span className="material-symbols-outlined text-2xl">equalizer</span>
+        </button>
+        <button
+          onClick={() => {}}
+          className="text-on-surface hover:bg-surface-variant/20 transition-colors rounded-full p-2 cursor-pointer"
+          aria-label="Ayarlar"
+        >
+          <span className="material-symbols-outlined text-2xl">settings</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
+// Main App component
 export default function App() {
   const {
     state,
     grid,
     currentRow,
     keyboardState,
-    statistics,
     addLetter,
     deleteLetter,
     submitGuess,
-    targetWord,
+    reset,
+    getStatistics,
     shakingRow,
     flippingRow,
     bouncingRow,
+    toast,
+    dismissToast,
+    targetWord,
   } = useGame();
 
   const [showHelp, setShowHelp] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
+  const [statistics, setStatistics] = useState(getStatistics());
 
   // Handle keyboard input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Prevent default for game keys to avoid page scroll
-      if (e.key === 'Enter' || e.key === 'Backspace' || /^[a-zA-ZçÇşŞğĞüÜöÖıİ]$/.test(e.key)) {
+      if (e.key === 'Enter' || e.key === 'Backspace' || /^[a-zA-ZçşğüöıÇŞĞÜÖİ]$/.test(e.key)) {
         e.preventDefault();
       }
 
       if (e.key === 'Enter') {
-        const result = submitGuess();
-        if (!result.success && result.message) {
-          setToast({ message: result.message, type: 'error' });
-        }
+        submitGuess();
       } else if (e.key === 'Backspace') {
         deleteLetter();
-      } else if (/^[a-zA-ZçÇşŞğĞüÜöÖıİ]$/.test(e.key)) {
+      } else if (/^[a-zA-ZçşğüöıÇŞĞÜÖİ]$/.test(e.key)) {
         addLetter(e.key);
       }
     };
@@ -496,69 +369,107 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [addLetter, deleteLetter, submitGuess]);
 
-  // Auto-show stats on win/lose
-  useEffect(() => {
-    if (state === 'WIN' || state === 'LOSE') {
-      const timer = setTimeout(() => setShowStats(true), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [state]);
-
-  const handleVirtualKeyPress = (key: string) => {
-    if (key === 'Enter') {
-      const result = submitGuess();
-      if (!result.success && result.message) {
-        setToast({ message: result.message, type: 'error' });
-      }
-    } else if (key === 'Backspace') {
+  // Handle virtual keyboard
+  const handleKeyPress = useCallback((key: string) => {
+    if (key === 'ENTER') {
+      submitGuess();
+    } else if (key === 'BACKSPACE') {
       deleteLetter();
     } else {
       addLetter(key);
     }
-  };
+  }, [addLetter, deleteLetter, submitGuess]);
+
+  // Handle stats click
+  const handleStatsClick = useCallback(() => {
+    setStatistics(getStatistics());
+    setShowStats(true);
+  }, [getStatistics]);
+
+  // Expose game state to window for debugging/testing
+  useEffect(() => {
+    (window as unknown as { game: {
+      state: GameState;
+      reset: () => void;
+      submitGuess: () => { success: boolean; message?: string };
+      getStatistics: () => Statistics;
+    }}).game = {
+      state,
+      reset,
+      submitGuess,
+      getStatistics,
+    };
+  }, [state, reset, submitGuess, getStatistics]);
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col overflow-hidden">
-      <Header 
-        onHelpClick={() => setShowHelp(true)}
-        onStatsClick={() => setShowStats(true)}
-      />
+      <Header onHelpClick={() => setShowHelp(true)} onStatsClick={handleStatsClick} />
       
       <main className="flex-grow flex flex-col items-center justify-center p-4">
         <Board 
           grid={grid} 
+          currentRow={currentRow}
           shakingRow={shakingRow}
-          bouncingRow={bouncingRow}
           flippingRow={flippingRow}
+          bouncingRow={bouncingRow}
         />
       </main>
 
-      <Keyboard 
-        onKeyPress={handleVirtualKeyPress}
-        keyboardState={keyboardState}
-      />
+      <Keyboard onKeyPress={handleKeyPress} keyboardState={keyboardState} />
 
-      {/* Modals */}
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      
-      {showStats && (
-        <StatisticsModal 
-          statistics={statistics}
-          onClose={() => setShowStats(false)}
-          gameState={state}
-          targetWord={targetWord}
-          guessCount={currentRow + (state === 'WIN' ? 1 : 0)}
-          grid={grid}
+      {/* Toast */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          visible={toast.visible}
+          onDismiss={dismissToast}
         />
       )}
 
-      {/* Toast */}
-      <Toast
-        message={toast?.message || ''}
-        type={toast?.type || 'info'}
-        visible={!!toast}
-        onDismiss={() => setToast(null)}
+      {/* Modals */}
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <StatisticsModal 
+        isOpen={showStats} 
+        onClose={() => setShowStats(false)} 
+        statistics={statistics}
       />
+
+      {/* Game Over Overlay */}
+      {(state === 'WIN' || state === 'LOSE') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md">
+          <div className="bg-surface-container-high w-full max-w-sm rounded-xl p-8 shadow-lg border border-outline-variant/10 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary" />
+            <div className="text-center">
+              <h2 className="text-5xl font-extrabold tracking-tighter text-on-surface mb-2 font-headline uppercase italic">
+                {state === 'WIN' ? 'TEBRİKLER!' : 'BİTTİ'}
+              </h2>
+              <p className="text-on-surface-variant text-sm mb-8 font-medium">
+                {state === 'WIN' 
+                  ? `Kelimeyi ${currentRow + 1}. denemede buldun.` 
+                  : `Doğru kelime: ${targetWord}`}
+              </p>
+              
+              <button
+                onClick={() => {
+                  reset();
+                  setShowStats(false);
+                }}
+                className="bg-primary hover:brightness-110 active:scale-95 transition-all text-on-primary font-bold py-4 px-6 rounded-full flex items-center justify-center gap-2 shadow-lg shadow-primary/20 mx-auto"
+              >
+                <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>replay</span>
+                YENİDEN OYNA
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowStats(true)}
+              className="mt-8 w-full py-3 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-semibold tracking-widest uppercase"
+            >
+              İSTATİSTİKLERİ GÖR
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

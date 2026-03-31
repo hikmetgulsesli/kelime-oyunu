@@ -1,27 +1,27 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, TileState, Grid, Statistics } from '../types';
+import { useState, useCallback, useRef } from 'react';
+import type { GameState, TileState, Grid, Statistics, GuessResult } from '../types';
 import { getTodaysWord, isValidGuess, evaluateGuess } from '../utils/wordUtils';
 
 const MAX_ATTEMPTS = 6;
 const WORD_LENGTH = 5;
-const STATISTICS_KEY = 'kelime-stats';
 
 interface UseGameReturn {
   state: GameState;
   grid: Grid;
   currentRow: number;
   currentCol: number;
-  targetWord: string;
-  guesses: string[];
   keyboardState: Map<string, TileState>;
-  statistics: Statistics;
   addLetter: (letter: string) => void;
   deleteLetter: () => void;
   submitGuess: () => { success: boolean; message?: string };
-  resetGame: () => void;
+  reset: () => void;
+  getStatistics: () => Statistics;
   shakingRow: number | null;
   flippingRow: number | null;
   bouncingRow: number | null;
+  toast: { message: string; type: 'info' | 'success' | 'error'; visible: boolean } | null;
+  dismissToast: () => void;
+  targetWord: string;
 }
 
 function createEmptyGrid(): Grid {
@@ -32,7 +32,7 @@ function createEmptyGrid(): Grid {
 
 function loadStatistics(): Statistics {
   try {
-    const saved = localStorage.getItem(STATISTICS_KEY);
+    const saved = localStorage.getItem('kelime-stats');
     if (saved) {
       return JSON.parse(saved);
     }
@@ -51,44 +51,37 @@ function loadStatistics(): Statistics {
 
 function saveStatistics(stats: Statistics): void {
   try {
-    localStorage.setItem(STATISTICS_KEY, JSON.stringify(stats));
+    localStorage.setItem('kelime-stats', JSON.stringify(stats));
   } catch {
     // Ignore localStorage errors
   }
 }
 
 export function useGame(): UseGameReturn {
-  const [state, setState] = useState<GameState>('IDLE');
+  const [state, setState] = useState<GameState>('PLAYING');
   const [grid, setGrid] = useState<Grid>(createEmptyGrid());
   const [currentRow, setCurrentRow] = useState(0);
   const [currentCol, setCurrentCol] = useState(0);
-  const [targetWord, setTargetWord] = useState(() => getTodaysWord());
-  const [guesses, setGuesses] = useState<string[]>([]);
   const [keyboardState, setKeyboardState] = useState<Map<string, TileState>>(new Map());
-  const [statistics, setStatistics] = useState<Statistics>(() => loadStatistics());
   const [shakingRow, setShakingRow] = useState<number | null>(null);
   const [flippingRow, setFlippingRow] = useState<number | null>(null);
   const [bouncingRow, setBouncingRow] = useState<number | null>(null);
-  const isMountedRef = useRef(true);
+  const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'error'; visible: boolean } | null>(null);
+  
+  const [targetWord, setTargetWord] = useState(getTodaysWord());
+  const targetWordRef = useRef(targetWord);
+  const guessesRef = useRef<string[]>([]);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
+  const showToast = useCallback((message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setToast({ message, type, visible: true });
   }, []);
 
-  // Start game on first interaction
-  const startGame = useCallback(() => {
-    if (state === 'IDLE') {
-      setState('PLAYING');
-    }
-  }, [state]);
+  const dismissToast = useCallback(() => {
+    setToast(prev => prev ? { ...prev, visible: false } : null);
+  }, []);
 
   const addLetter = useCallback((letter: string) => {
-    startGame();
-    
-    if (state === 'WIN' || state === 'LOSE') return;
+    if (state !== 'PLAYING') return;
     if (currentCol >= WORD_LENGTH) return;
     
     const normalizedLetter = letter.toLocaleUpperCase('tr-TR');
@@ -103,10 +96,10 @@ export function useGame(): UseGameReturn {
     });
     
     setCurrentCol(prev => prev + 1);
-  }, [currentCol, currentRow, state, startGame]);
+  }, [state, currentRow, currentCol]);
 
   const deleteLetter = useCallback(() => {
-    if (state === 'WIN' || state === 'LOSE') return;
+    if (state !== 'PLAYING') return;
     if (currentCol <= 0) return;
     
     setGrid(prev => {
@@ -116,191 +109,150 @@ export function useGame(): UseGameReturn {
     });
     
     setCurrentCol(prev => prev - 1);
-  }, [currentCol, currentRow, state]);
+  }, [state, currentRow, currentCol]);
 
-  const updateKeyboardState = useCallback((_guess: string, results: { letter: string; result: 'correct' | 'present' | 'absent' }[]) => {
+  const updateKeyboardState = useCallback((guess: string, results: GuessResult) => {
     setKeyboardState(prev => {
       const newState = new Map(prev);
-      
-      results.forEach(({ letter, result }) => {
+      results.tiles.forEach((tileState, index) => {
+        const letter = guess[index];
         const currentState = newState.get(letter);
         
         // Priority: correct > present > absent
-        if (result === 'correct') {
+        if (tileState === 'correct') {
           newState.set(letter, 'correct');
-        } else if (result === 'present' && currentState !== 'correct') {
+        } else if (tileState === 'present' && currentState !== 'correct') {
           newState.set(letter, 'present');
-        } else if (result === 'absent' && !currentState) {
+        } else if (tileState === 'absent' && !currentState) {
           newState.set(letter, 'absent');
         }
       });
-      
       return newState;
     });
   }, []);
 
   const submitGuess = useCallback(() => {
-    if (state === 'WIN' || state === 'LOSE') {
+    if (state !== 'PLAYING') {
       return { success: false, message: 'Oyun bitti' };
     }
     
     if (currentCol < WORD_LENGTH) {
-      // Shake animation for incomplete word
       setShakingRow(currentRow);
-      setTimeout(() => {
-        if (isMountedRef.current) setShakingRow(null);
-      }, 500);
+      setTimeout(() => setShakingRow(null), 600);
       return { success: false, message: 'Eksik harf' };
     }
     
-    const currentGuess = grid[currentRow].map(tile => tile.letter).join('');
+    const guess = grid[currentRow].map(tile => tile.letter).join('');
     
-    if (!isValidGuess(currentGuess)) {
-      // Shake animation for invalid word
+    if (!isValidGuess(guess)) {
       setShakingRow(currentRow);
-      setTimeout(() => {
-        if (isMountedRef.current) setShakingRow(null);
-      }, 500);
+      setTimeout(() => setShakingRow(null), 600);
+      showToast('Geçersiz kelime', 'error');
       return { success: false, message: 'Geçersiz kelime' };
     }
     
-    // Evaluate the guess
-    const evaluation = evaluateGuess(currentGuess, targetWord);
-    const isCorrect = evaluation.every(r => r.result === 'correct');
-    
-    // Update keyboard state
-    updateKeyboardState(currentGuess, evaluation);
+    const targetWord = targetWordRef.current;
+    const evaluation = evaluateGuess(guess, targetWord);
+    const tiles = evaluation.map(e => e.result);
     
     // Start flip animation
     setFlippingRow(currentRow);
     
-    // Update grid with results after a short delay for animation
+    // Update grid with results after a short delay (mid-flip)
     setTimeout(() => {
-      if (!isMountedRef.current) return;
       setGrid(prev => {
         const newGrid = prev.map(row => [...row]);
         evaluation.forEach((result, index) => {
-          newGrid[currentRow][index] = {
-            letter: result.letter,
-            state: result.result
+          newGrid[currentRow][index] = { 
+            letter: result.letter, 
+            state: result.result 
           };
         });
         return newGrid;
       });
-      
+    }, 250);
+    
+    // End flip animation and check win/lose
+    setTimeout(() => {
       setFlippingRow(null);
       
-      // Add to guesses
-      const newGuesses = [...guesses, currentGuess];
-      setGuesses(newGuesses);
+      const isCorrect = tiles.every(t => t === 'correct');
+      guessesRef.current.push(guess);
+      
+      updateKeyboardState(guess, { word: guess, tiles, isCorrect });
       
       if (isCorrect) {
         setState('WIN');
         setBouncingRow(currentRow);
-        setTimeout(() => {
-          if (isMountedRef.current) setBouncingRow(null);
-        }, 1500);
+        setTimeout(() => setBouncingRow(null), 2500);
+        showToast('Tebrikler!', 'success');
         
         // Update statistics
-        setStatistics(prev => {
-          const newStats = {
-            ...prev,
-            gamesPlayed: prev.gamesPlayed + 1,
-            gamesWon: prev.gamesWon + 1,
-            currentStreak: prev.currentStreak + 1,
-            maxStreak: Math.max(prev.maxStreak, prev.currentStreak + 1),
-            guessDistribution: [...prev.guessDistribution],
-          };
-          newStats.guessDistribution[currentRow]++;
-          newStats.winPercentage = Math.round((newStats.gamesWon / newStats.gamesPlayed) * 100);
-          saveStatistics(newStats);
-          return newStats;
-        });
+        const stats = loadStatistics();
+        stats.gamesPlayed++;
+        stats.gamesWon++;
+        stats.currentStreak++;
+        if (stats.currentStreak > stats.maxStreak) {
+          stats.maxStreak = stats.currentStreak;
+        }
+        stats.guessDistribution[currentRow]++;
+        stats.winPercentage = Math.round((stats.gamesWon / stats.gamesPlayed) * 100);
+        saveStatistics(stats);
       } else if (currentRow >= MAX_ATTEMPTS - 1) {
         setState('LOSE');
+        showToast(`Kelime: ${targetWord}`, 'info');
         
         // Update statistics
-        setStatistics(prev => {
-          const newStats = {
-            ...prev,
-            gamesPlayed: prev.gamesPlayed + 1,
-            currentStreak: 0,
-          };
-          newStats.winPercentage = Math.round((newStats.gamesWon / newStats.gamesPlayed) * 100);
-          saveStatistics(newStats);
-          return newStats;
-        });
+        const stats = loadStatistics();
+        stats.gamesPlayed++;
+        stats.currentStreak = 0;
+        stats.winPercentage = Math.round((stats.gamesWon / stats.gamesPlayed) * 100);
+        saveStatistics(stats);
       } else {
-        // Move to next row
         setCurrentRow(prev => prev + 1);
         setCurrentCol(0);
       }
     }, 1500);
     
     return { success: true };
-  }, [currentCol, currentRow, grid, guesses, state, targetWord, updateKeyboardState]);
+  }, [state, currentRow, currentCol, grid, showToast, updateKeyboardState]);
 
-  const resetGame = useCallback(() => {
-    setState('IDLE');
+  const reset = useCallback(() => {
+    const newWord = getTodaysWord();
+    setState('PLAYING');
     setGrid(createEmptyGrid());
     setCurrentRow(0);
     setCurrentCol(0);
-    setTargetWord(getTodaysWord());
-    setGuesses([]);
     setKeyboardState(new Map());
+    setTargetWord(newWord);
+    targetWordRef.current = newWord;
+    guessesRef.current = [];
     setShakingRow(null);
     setFlippingRow(null);
     setBouncingRow(null);
+    setToast(null);
   }, []);
 
-  // Expose game state to window for testing
-  useEffect(() => {
-    const gameWindow = window as unknown as {
-      game: {
-        state: GameState;
-        currentRow: number;
-        currentCol: number;
-        targetWord: string;
-        guesses: string[];
-        grid: Grid;
-        statistics: Statistics;
-        keyboardState: Map<string, TileState>;
-        reset: () => void;
-        submitGuess: () => { success: boolean; message?: string };
-        getStatistics: () => Statistics;
-      }
-    };
-    
-    gameWindow.game = {
-      state,
-      currentRow,
-      currentCol,
-      targetWord,
-      guesses,
-      grid,
-      statistics,
-      keyboardState,
-      reset: resetGame,
-      submitGuess,
-      getStatistics: () => statistics,
-    };
-  }, [state, currentRow, currentCol, targetWord, guesses, grid, statistics, keyboardState, resetGame, submitGuess]);
+  const getStatistics = useCallback(() => {
+    return loadStatistics();
+  }, []);
 
   return {
     state,
     grid,
     currentRow,
     currentCol,
-    targetWord,
-    guesses,
     keyboardState,
-    statistics,
     addLetter,
     deleteLetter,
     submitGuess,
-    resetGame,
+    reset,
+    getStatistics,
     shakingRow,
     flippingRow,
     bouncingRow,
+    toast,
+    dismissToast,
+    targetWord,
   };
 }
