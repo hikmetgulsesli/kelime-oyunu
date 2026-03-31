@@ -1,307 +1,258 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { evaluateGuess, isValidGuess, getDailyWord, PositionResult } from '../utils/wordUtils';
-import { getToday } from '../utils/dateUtils';
+import { useState, useCallback, useRef } from 'react';
+import type { GameState, TileState, Grid, Statistics, GuessResult } from '../types';
+import { getTodaysWord, isValidGuess, evaluateGuess } from '../utils/wordUtils';
 
-export type GameState = 'IDLE' | 'PLAYING' | 'WIN' | 'LOSE';
+const MAX_ATTEMPTS = 6;
+const WORD_LENGTH = 5;
 
-export interface GuessResult {
-  word: string;
-  evaluation: PositionResult[];
-}
-
-export interface GameStatistics {
-  gamesPlayed: number;
-  gamesWon: number;
-  winPercentage: number;
-  currentStreak: number;
-  maxStreak: number;
-  guessDistribution: [number, number, number, number, number, number];
-}
-
-export interface GameStateData {
-  gameState: GameState;
+interface UseGameReturn {
+  state: GameState;
+  grid: Grid;
   currentRow: number;
-  currentTile: number;
-  guesses: GuessResult[];
+  currentCol: number;
+  keyboardState: Map<string, TileState>;
+  addLetter: (letter: string) => void;
+  deleteLetter: () => void;
+  submitGuess: () => { success: boolean; message?: string };
+  reset: () => void;
+  getStatistics: () => Statistics;
+  shakingRow: number | null;
+  flippingRow: number | null;
+  bouncingRow: number | null;
+  toast: { message: string; type: 'info' | 'success' | 'error'; visible: boolean } | null;
+  dismissToast: () => void;
   targetWord: string;
-  date: string;
 }
 
-const STORAGE_KEY = 'kelime-oyunu-stats';
-const GAME_STATE_KEY = 'kelime-oyunu-state';
+function createEmptyGrid(): Grid {
+  return Array(MAX_ATTEMPTS).fill(null).map(() =>
+    Array(WORD_LENGTH).fill(null).map(() => ({ letter: '', state: 'empty' as TileState }))
+  );
+}
 
-const DEFAULT_STATS: GameStatistics = {
-  gamesPlayed: 0,
-  gamesWon: 0,
-  winPercentage: 0,
-  currentStreak: 0,
-  maxStreak: 0,
-  guessDistribution: [0, 0, 0, 0, 0, 0],
-};
-
-/**
- * Get statistics from localStorage
- */
-function getStoredStatistics(): GameStatistics {
-  if (typeof window === 'undefined') {
-    return DEFAULT_STATS;
-  }
-
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    return DEFAULT_STATS;
-  }
-
+function loadStatistics(): Statistics {
   try {
-    return { ...DEFAULT_STATS, ...JSON.parse(stored) };
+    const saved = localStorage.getItem('kelime-stats');
+    if (saved) {
+      return JSON.parse(saved);
+    }
   } catch {
-    return DEFAULT_STATS;
+    // Ignore localStorage errors
   }
+  return {
+    gamesPlayed: 0,
+    gamesWon: 0,
+    currentStreak: 0,
+    maxStreak: 0,
+    guessDistribution: [0, 0, 0, 0, 0, 0],
+    winPercentage: 0,
+  };
 }
 
-/**
- * Save statistics to localStorage
- */
-function saveStatistics(stats: GameStatistics): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
-  }
-}
-
-/**
- * Get saved game state from localStorage
- */
-function getStoredGameState(): GameStateData | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  const stored = localStorage.getItem(GAME_STATE_KEY);
-  if (!stored) {
-    return null;
-  }
-
+function saveStatistics(stats: Statistics): void {
   try {
-    return JSON.parse(stored);
+    localStorage.setItem('kelime-stats', JSON.stringify(stats));
   } catch {
-    return null;
+    // Ignore localStorage errors
   }
 }
 
-/**
- * Save game state to localStorage
- */
-function saveGameState(state: GameStateData): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(GAME_STATE_KEY, JSON.stringify(state));
-  }
-}
+export function useGame(): UseGameReturn {
+  const [state, setState] = useState<GameState>('PLAYING');
+  const [grid, setGrid] = useState<Grid>(createEmptyGrid());
+  const [currentRow, setCurrentRow] = useState(0);
+  const [currentCol, setCurrentCol] = useState(0);
+  const [keyboardState, setKeyboardState] = useState<Map<string, TileState>>(new Map());
+  const [shakingRow, setShakingRow] = useState<number | null>(null);
+  const [flippingRow, setFlippingRow] = useState<number | null>(null);
+  const [bouncingRow, setBouncingRow] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'error'; visible: boolean } | null>(null);
+  
+  const [targetWord, setTargetWord] = useState(getTodaysWord());
+  const targetWordRef = useRef(targetWord);
+  const guessesRef = useRef<string[]>([]);
 
-/**
- * Clear game state from localStorage
- */
-function clearGameState(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(GAME_STATE_KEY);
-  }
-}
+  const showToast = useCallback((message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setToast({ message, type, visible: true });
+  }, []);
 
-/**
- * Custom hook for managing game state
- */
-export function useGame() {
-  const today = useMemo(() => getToday(), []);
-  const todayString = today;
-  const targetWord = useMemo(() => getDailyWord(todayString), [todayString]);
+  const dismissToast = useCallback(() => {
+    setToast(prev => prev ? { ...prev, visible: false } : null);
+  }, []);
 
-  // Read stored state once to initialize all useState calls
-  const storedState = useMemo(() => {
-    const stored = getStoredGameState();
-    if (stored && stored.date === todayString && stored.targetWord === targetWord) {
-      return stored;
-    }
-    return null;
-  }, [todayString, targetWord]);
-
-  // Initialize state from localStorage or defaults
-  const [gameState, setGameState] = useState<GameState>(() => {
-    return storedState?.gameState ?? 'IDLE';
-  });
-
-  const [currentRow, setCurrentRow] = useState<number>(() => {
-    return storedState?.currentRow ?? 0;
-  });
-
-  const [currentTile, setCurrentTile] = useState<number>(() => {
-    return storedState?.currentTile ?? 0;
-  });
-
-  const [guesses, setGuesses] = useState<GuessResult[]>(() => {
-    return storedState?.guesses ?? [];
-  });
-
-  // Save game state whenever it changes
-  useEffect(() => {
-    if (gameState !== 'IDLE') {
-      saveGameState({
-        gameState,
-        currentRow,
-        currentTile,
-        guesses,
-        targetWord,
-        date: todayString,
-      });
-    }
-  }, [gameState, currentRow, currentTile, guesses, targetWord, todayString]);
-
-  /**
-   * Add a letter to the current guess
-   */
   const addLetter = useCallback((letter: string) => {
-    if (gameState === 'WIN' || gameState === 'LOSE') {
-      return;
-    }
-
-    if (currentTile < 5 && currentRow < 6) {
-      // Transition from IDLE to PLAYING on first keypress
-      if (gameState === 'IDLE') {
-        setGameState('PLAYING');
-      }
-      setCurrentTile((prev) => prev + 1);
-    }
-    // letter parameter is used by the calling component to track the current word
-    void letter;
-  }, [currentTile, currentRow, gameState]);
-
-  /**
-   * Remove the last letter from the current guess
-   */
-  const deleteLetter = useCallback(() => {
-    if (gameState === 'WIN' || gameState === 'LOSE') {
-      return;
-    }
-
-    if (currentTile > 0) {
-      setCurrentTile((prev) => prev - 1);
-    }
-  }, [currentTile, gameState]);
-
-  /**
-   * Get the current guess word being typed
-   * @deprecated Use getCurrentGuessWord instead
-   */
-  const _getCurrentGuess = useCallback((): string => {
-    // This is used externally to track what's being typed
-    // The actual letters are managed by the component
-    return '';
-  }, []);
-  // Prevent unused variable error - this function is kept for API compatibility
-  void _getCurrentGuess;
-
-  /**
-   * Submit the current guess
-   */
-  const submitGuess = useCallback((guessWord: string): { success: boolean; error?: string } => {
-    if (gameState === 'WIN' || gameState === 'LOSE') {
-      return { success: false, error: 'Oyun zaten bitti' };
-    }
-
-    const upperGuess = guessWord.toUpperCase();
-
-    // Validate word length
-    if (upperGuess.length !== 5) {
-      return { success: false, error: 'Kelime 5 harfli olmalı' };
-    }
-
-    // Validate if it's a valid Turkish word
-    if (!isValidGuess(upperGuess)) {
-      return { success: false, error: 'Geçerli bir kelime değil' };
-    }
-
-    // Evaluate the guess
-    const evaluation = evaluateGuess(upperGuess, targetWord);
-    const newGuess: GuessResult = {
-      word: upperGuess,
-      evaluation,
-    };
-
-    setGuesses((prev) => [...prev, newGuess]);
-
-    // Check if won
-    const isWin = upperGuess === targetWord;
+    if (state !== 'PLAYING') return;
+    if (currentCol >= WORD_LENGTH) return;
     
-    if (isWin) {
-      setGameState('WIN');
-      // Update statistics
-      const stats = getStoredStatistics();
-      stats.gamesPlayed += 1;
-      stats.gamesWon += 1;
-      stats.currentStreak += 1;
-      if (stats.currentStreak > stats.maxStreak) {
-        stats.maxStreak = stats.currentStreak;
+    const normalizedLetter = letter.toLocaleUpperCase('tr-TR');
+    
+    setGrid(prev => {
+      const newGrid = prev.map(row => [...row]);
+      newGrid[currentRow][currentCol] = { 
+        letter: normalizedLetter, 
+        state: 'filled' 
+      };
+      return newGrid;
+    });
+    
+    setCurrentCol(prev => prev + 1);
+  }, [state, currentRow, currentCol]);
+
+  const deleteLetter = useCallback(() => {
+    if (state !== 'PLAYING') return;
+    if (currentCol <= 0) return;
+    
+    setGrid(prev => {
+      const newGrid = prev.map(row => [...row]);
+      newGrid[currentRow][currentCol - 1] = { letter: '', state: 'empty' };
+      return newGrid;
+    });
+    
+    setCurrentCol(prev => prev - 1);
+  }, [state, currentRow, currentCol]);
+
+  const updateKeyboardState = useCallback((guess: string, results: GuessResult) => {
+    setKeyboardState(prev => {
+      const newState = new Map(prev);
+      results.tiles.forEach((tileState, index) => {
+        const letter = guess[index];
+        const currentState = newState.get(letter);
+        
+        // Priority: correct > present > absent
+        if (tileState === 'correct') {
+          newState.set(letter, 'correct');
+        } else if (tileState === 'present' && currentState !== 'correct') {
+          newState.set(letter, 'present');
+        } else if (tileState === 'absent' && !currentState) {
+          newState.set(letter, 'absent');
+        }
+      });
+      return newState;
+    });
+  }, []);
+
+  const submitGuess = useCallback(() => {
+    if (state !== 'PLAYING') {
+      return { success: false, message: 'Oyun bitti' };
+    }
+    
+    if (currentCol < WORD_LENGTH) {
+      setShakingRow(currentRow);
+      setTimeout(() => setShakingRow(null), 600);
+      return { success: false, message: 'Eksik harf' };
+    }
+    
+    const guess = grid[currentRow].map(tile => tile.letter).join('');
+    
+    if (!isValidGuess(guess)) {
+      setShakingRow(currentRow);
+      setTimeout(() => setShakingRow(null), 600);
+      showToast('Geçersiz kelime', 'error');
+      return { success: false, message: 'Geçersiz kelime' };
+    }
+    
+    const targetWord = targetWordRef.current;
+    const evaluation = evaluateGuess(guess, targetWord);
+    const tiles = evaluation.map(e => e.result);
+    
+    // Start flip animation
+    setFlippingRow(currentRow);
+    
+    // Update grid with results after a short delay (mid-flip)
+    setTimeout(() => {
+      setGrid(prev => {
+        const newGrid = prev.map(row => [...row]);
+        evaluation.forEach((result, index) => {
+          newGrid[currentRow][index] = { 
+            letter: result.letter, 
+            state: result.result 
+          };
+        });
+        return newGrid;
+      });
+    }, 250);
+    
+    // End flip animation and check win/lose
+    setTimeout(() => {
+      setFlippingRow(null);
+      
+      const isCorrect = tiles.every(t => t === 'correct');
+      guessesRef.current.push(guess);
+      
+      updateKeyboardState(guess, { word: guess, tiles, isCorrect });
+      
+      if (isCorrect) {
+        setState('WIN');
+        setBouncingRow(currentRow);
+        setTimeout(() => setBouncingRow(null), 2500);
+        showToast('Tebrikler!', 'success');
+        
+        // Update statistics
+        const stats = loadStatistics();
+        stats.gamesPlayed++;
+        stats.gamesWon++;
+        stats.currentStreak++;
+        if (stats.currentStreak > stats.maxStreak) {
+          stats.maxStreak = stats.currentStreak;
+        }
+        stats.guessDistribution[currentRow]++;
+        stats.winPercentage = Math.round((stats.gamesWon / stats.gamesPlayed) * 100);
+        saveStatistics(stats);
+      } else if (currentRow >= MAX_ATTEMPTS - 1) {
+        setState('LOSE');
+        showToast(`Kelime: ${targetWord}`, 'info');
+        
+        // Update statistics
+        const stats = loadStatistics();
+        stats.gamesPlayed++;
+        stats.currentStreak = 0;
+        stats.winPercentage = Math.round((stats.gamesWon / stats.gamesPlayed) * 100);
+        saveStatistics(stats);
+      } else {
+        setCurrentRow(prev => prev + 1);
+        setCurrentCol(0);
       }
-      stats.guessDistribution[currentRow] += 1;
-      stats.winPercentage = Math.round((stats.gamesWon / stats.gamesPlayed) * 100);
-      saveStatistics(stats);
-    } else if (currentRow + 1 >= 6) {
-      // Last row and didn't win
-      setGameState('LOSE');
-      // Update statistics
-      const stats = getStoredStatistics();
-      stats.gamesPlayed += 1;
-      stats.currentStreak = 0;
-      stats.winPercentage = Math.round((stats.gamesWon / stats.gamesPlayed) * 100);
-      saveStatistics(stats);
-    } else {
-      // Move to next row
-      setCurrentRow((prev) => prev + 1);
-      setCurrentTile(0);
-    }
-
+    }, 1500);
+    
     return { success: true };
-  }, [currentRow, gameState, targetWord]);
+  }, [state, currentRow, currentCol, grid, showToast, updateKeyboardState]);
 
-  /**
-   * Reset the game to initial state
-   */
-  const resetGame = useCallback(() => {
-    setGameState('IDLE');
+  const reset = useCallback(() => {
+    const newWord = getTodaysWord();
+    setState('PLAYING');
+    setGrid(createEmptyGrid());
     setCurrentRow(0);
-    setCurrentTile(0);
-    setGuesses([]);
-    clearGameState();
+    setCurrentCol(0);
+    setKeyboardState(new Map());
+    setTargetWord(newWord);
+    targetWordRef.current = newWord;
+    guessesRef.current = [];
+    setShakingRow(null);
+    setFlippingRow(null);
+    setBouncingRow(null);
+    setToast(null);
   }, []);
 
-  /**
-   * Get current statistics
-   */
-  const getStatistics = useCallback((): GameStatistics => {
-    return getStoredStatistics();
+  const getStatistics = useCallback(() => {
+    return loadStatistics();
   }, []);
-
-  /**
-   * Get the current word being typed (for external tracking)
-   */
-  const getCurrentGuessWord = useCallback((): string => {
-    // This returns the word at the current row from guesses if it exists
-    // Otherwise returns empty string
-    if (guesses.length > currentRow) {
-      return guesses[currentRow]?.word || '';
-    }
-    return '';
-  }, [guesses, currentRow]);
 
   return {
-    gameState,
+    state,
+    grid,
     currentRow,
-    currentTile,
-    guesses,
-    targetWord,
+    currentCol,
+    keyboardState,
     addLetter,
     deleteLetter,
     submitGuess,
-    resetGame,
+    reset,
     getStatistics,
-    getCurrentGuessWord,
+    shakingRow,
+    flippingRow,
+    bouncingRow,
+    toast,
+    dismissToast,
+    targetWord,
   };
 }
