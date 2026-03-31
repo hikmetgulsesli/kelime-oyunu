@@ -164,6 +164,7 @@ export default function App() {
   }, []);
 
   // Keyboard event handlers
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleLetterPress = useCallback((_letter: string) => {
     // Placeholder - will be implemented with useGame hook
   }, []);

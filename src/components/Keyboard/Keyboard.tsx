@@ -42,7 +42,8 @@ export function Keyboard({
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
-      timeoutIdsRef.current.forEach(clearTimeout);
+      const ids = timeoutIdsRef.current;
+      ids.forEach(clearTimeout);
     };
   }, []);
 
